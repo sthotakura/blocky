@@ -6,9 +6,13 @@
                  xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
                  xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
                  xmlns:views="clr-namespace:Blocky.Views"
-                 mc:Ignorable="d"
+                 xmlns:systemTray="clr-namespace:Chapter.Net.WPF.SystemTray;assembly=Chapter.Net.WPF.SystemTray"
                  WindowStartupLocation="CenterScreen"
-                 Title="Blocky" d:DesignHeight="600" d:DesignWidth="800">
+                 Title="Blocky"
+                 ShowCloseButton="False"
+                 ShowMaxRestoreButton="False"
+                 mc:Ignorable="d"
+                 d:DesignHeight="600" d:DesignWidth="800">
     <mah:MetroWindow.RightWindowCommands>
         <mah:WindowCommands>
             <Button Command="{Binding ToggleProxyCommand}">
@@ -30,6 +34,9 @@
             <Button Command="{Binding AddRuleCommand}" ToolTip="Add Rule">
                 <iconPacks:PackIconModern Kind="Add" />
             </Button>
+            <Button Command="{Binding OpenLogCommand}" ToolTip="Open Log">
+                <iconPacks:PackIconModern Kind="Book" />
+            </Button>
             <Button Command="{Binding ToggleSettingsCommand}" ToolTip="Open Settings">
                 <iconPacks:PackIconModern Kind="Settings" />
             </Button>
@@ -42,6 +49,33 @@
             </mah:Flyout>
         </mah:FlyoutsControl>
     </mah:MetroWindow.Flyouts>
+    <systemTray:Tray.TrayIcon>
+        <systemTray:TrayIcon Icon="Blocky.exe"
+                             OpenWindowOnDoubleClick="True"
+                             ToolTip="Blocky: Website Blocker"
+                             MinimizeToTray="True">
+            <systemTray:TrayIcon.ContextMenu>
+                <ContextMenu>
+                    <systemTray:ShowWindowMenuItem Header="Blocky" FontWeight="Bold"/>
+                    <Separator />
+                    <MenuItem Command="{Binding ToggleProxyCommand}">
+                        <MenuItem.Style>
+                            <Style TargetType="MenuItem" BasedOn="{StaticResource MenuItemStyle}">
+                                <Setter Property="Header" Value="Start" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsRunning}" Value="True">
+                                        <Setter Property="Header" Value="Stop" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </MenuItem.Style>
+                    </MenuItem>
+                    <Separator />
+                    <MenuItem Command="{Binding QuitCommand}" Header="Quit" />
+                </ContextMenu>
+            </systemTray:TrayIcon.ContextMenu>
+        </systemTray:TrayIcon>
+    </systemTray:Tray.TrayIcon>
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
@@ -52,7 +86,13 @@
                   Margin="10"
                   ItemsSource="{Binding Rules}"
                   AutoGenerateColumns="False"
-                  CanUserAddRows="False">
+                  CanUserAddRows="False"
+                  CanUserSortColumns="False"
+                  CanUserDeleteRows="False"
+                  CanUserReorderColumns="False"
+                  CanUserResizeRows="False"
+                  CanUserResizeColumns="True"
+                  IsReadOnly="True">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Domain"
                                     Binding="{Binding Domain}"
@@ -63,13 +103,29 @@
                 <DataGridCheckBoxColumn Header="Time Restricted"
                                         Binding="{Binding HasTimeRestriction}"
                                         Width="Auto" />
-                <DataGridTemplateColumn Header="Actions" Width="Auto">
+                <DataGridTextColumn Header="Block Time Start"
+                                    Binding="{Binding StartTime}"
+                                    Width="Auto" />
+                <DataGridTextColumn Header="Block Time End"
+                                    Binding="{Binding EndTime}"
+                                    Width="Auto" />
+                <DataGridTemplateColumn Header="Actions" Width="Auto" MinWidth="100">
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
-                            <Button Content="Remove"
-                                    Command="{Binding DataContext.RemoveRuleCommand, 
-                                              RelativeSource={RelativeSource AncestorType=Window}}"
-                                    CommandParameter="{Binding}" />
+                            <UniformGrid Rows="1" Columns="2">
+                                <Button Command="{Binding DataContext.EditRuleCommand, 
+                                        RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}" Margin="5 0" MinWidth="35"
+                                        ToolTip="Edit Rule">
+                                    <iconPacks:PackIconModern Kind="Edit" />
+                                </Button>
+                                <Button Command="{Binding DataContext.RemoveRuleCommand, 
+                                        RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}" Margin="5 0" MinWidth="35"
+                                        ToolTip="Delete Rule">
+                                    <iconPacks:PackIconModern Kind="Delete" />
+                                </Button>
+                            </UniformGrid>
                         </DataTemplate>
                     </DataGridTemplateColumn.CellTemplate>
                 </DataGridTemplateColumn>

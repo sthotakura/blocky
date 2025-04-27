@@ -11,6 +11,8 @@ public interface IBlockyService
     Task StopAsync();
 
     Task AddRuleAsync(BlockyRule rule);
+    
+    Task UpdateRuleAsync(BlockyRule updatedRule);
 
     Task RemoveRuleAsync(Guid id);
 

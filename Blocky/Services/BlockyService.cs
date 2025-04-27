@@ -46,24 +46,38 @@ public sealed class BlockyService : IBlockyService, IAsyncDisposable
         var settings = await _settingsService.GetSettingsAsync();
         if (settings.IsRunning)
         {
-            await StartAsync();
+            await StartImplAsync();
         }
     }
 
     async void OnSettingsChanged(object? sender, BlockySettings e)
     {
-        if (!IsRunning) return;
+        try
+        {
+            if (!IsRunning) return;
 
-        _logger.LogInformation("Settings changed, restarting Blocky service . . .");
+            _logger.LogInformation("Settings changed, restarting Blocky service . . .");
 
-        await StopAsync();
-        await Task.Delay(1000);
-        await StartAsync();
+            await StopAsync();
+            await Task.Delay(1000);
+            await StartAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error restarting Blocky service");
+        }
     }
 
     public bool IsRunning { get; private set; }
 
     public async Task StartAsync()
+    {
+        await _initializeTask;
+
+        await StartImplAsync();
+    }
+
+    async Task StartImplAsync()
     {
         if (IsRunning) return;
 
@@ -82,7 +96,7 @@ public sealed class BlockyService : IBlockyService, IAsyncDisposable
     {
         if (_endPoint == null)
         {
-            _endPoint = new ExplicitProxyEndPoint(System.Net.IPAddress.Any, settings.ProxyPort, true);
+            _endPoint = new ExplicitProxyEndPoint(System.Net.IPAddress.Any, settings.ProxyPort);
             _proxyServer.AddEndPoint(_endPoint);
         }
 
@@ -90,6 +104,13 @@ public sealed class BlockyService : IBlockyService, IAsyncDisposable
     }
 
     public async Task StopAsync()
+    {
+        await _initializeTask;
+
+        await StopImplAsync();
+    }
+
+    async Task StopImplAsync()
     {
         if (!IsRunning) return;
 
@@ -123,6 +144,15 @@ public sealed class BlockyService : IBlockyService, IAsyncDisposable
 
         return _repo.AddAsync(rule);
     }
+    
+    public Task UpdateRuleAsync(BlockyRule updatedRule)
+    {
+        ArgumentNullException.ThrowIfNull(updatedRule);
+
+        _logger.LogInformation("Updating rule {rule}", updatedRule);
+
+        return _repo.UpdateAsync(updatedRule);
+    }
 
     public Task RemoveRuleAsync(Guid id)
     {
@@ -144,36 +174,57 @@ public sealed class BlockyService : IBlockyService, IAsyncDisposable
 
     async Task OnBeforeRequest(object sender, SessionEventArgs e)
     {
-        if (!IsRunning)
+        try
         {
-            return;
-        }
-
-        var url = e.HttpClient.Request.RequestUri;
-
-        _logger.LogInformation("Checking {Url}", url.ToString());
-
-        var activeRules = await _repo.GetActiveRulesAsync();
-
-        foreach (var rule in activeRules)
-        {
-            if (url.Host.Contains(rule.Domain))
+            if (!IsRunning)
             {
-                if (rule is { HasTimeRestriction: true, StartTime: not null, EndTime: not null })
+                return;
+            }
+
+            var url = e.HttpClient.Request.RequestUri;
+            var host = url.Host.ToLowerInvariant();
+
+            // Only log at debug level to avoid excessive logging in production
+            _logger.LogDebug("Checking Host: {Host} URL: {Url}", host, url);
+
+            var activeRules = await _repo.GetActiveRulesAsync();
+            
+            foreach (var rule in activeRules)
+            {
+                var domain = rule.Domain.ToLowerInvariant();
+                
+                // More precise domain matching
+                if (host == domain || host.EndsWith($".{domain}"))
                 {
-                    var now = _dateTimeService.Now.TimeOfDay;
-                    if (now >= rule.StartTime && now <= rule.EndTime)
+                    if (rule is { HasTimeRestriction: true, StartTime: not null, EndTime: not null })
                     {
+                        var now = _dateTimeService.Now.TimeOfDay;
+                        
+                        var isWithinTimeRestriction = rule.StartTime <= rule.EndTime
+                            ? now >= rule.StartTime && now <= rule.EndTime
+                            : now >= rule.StartTime || now <= rule.EndTime;
+                        
+                        if (isWithinTimeRestriction)
+                        {
+                            _logger.LogInformation("Time-restricted block applied to {Domain} at {Time}", 
+                                host, _dateTimeService.Now.TimeOfDay);
+                            await BlockRequestAsync(e);
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        // No time restriction, always block
+                        _logger.LogInformation("Block applied to {Domain}", host);
                         await BlockRequestAsync(e);
                         return;
                     }
                 }
-                else
-                {
-                    await BlockRequestAsync(e);
-                    return;
-                }
             }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing request to {Url}", e.HttpClient.Request.RequestUri);
         }
     }
 

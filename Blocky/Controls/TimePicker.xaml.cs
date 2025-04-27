@@ -3,14 +3,15 @@ using System.Windows.Controls;
 
 namespace Blocky.Controls;
 
-public partial class TimePicker : UserControl
+public partial class TimePicker
 {
     public static readonly DependencyProperty SelectedTimeProperty =
         DependencyProperty.Register(
             nameof(SelectedTime),
             typeof(TimeSpan?),
             typeof(TimePicker),
-            new PropertyMetadata(null, OnSelectedTimeChanged));
+            new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.BindsTwoWayByDefault,
+                OnSelectedTimeChanged));
 
     public TimeSpan? SelectedTime
     {

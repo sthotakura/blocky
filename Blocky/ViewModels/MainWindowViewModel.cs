@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Windows;
 using Blocky.Data;
 using Blocky.Messages;
@@ -16,71 +17,79 @@ public partial class MainWindowViewModel : ObservableObject, IRecipient<CloseSet
 {
     readonly IBlockyService _blockyService;
     readonly IApplication _app;
+    readonly ILogConfig _logConfig;
 
     readonly Task _loadTask;
 
-    [ObservableProperty] bool _settingsViewOpen = false;
-    
+    [ObservableProperty] bool _settingsViewOpen;
+
     [ObservableProperty] SettingsViewModel _settingsViewModel;
 
-    public MainWindowViewModel(IBlockyService blockyService, IApplication app, SettingsViewModel settingsViewModel, IMessenger messenger)
+    public MainWindowViewModel(IBlockyService blockyService, IApplication app, SettingsViewModel settingsViewModel,
+        IMessenger messenger, ILogConfig logConfig)
     {
         _blockyService = blockyService;
         _app = app;
         _settingsViewModel = settingsViewModel;
+        _logConfig = logConfig;
 
         messenger.Register(this);
         _loadTask = LoadAsync();
     }
-    
+
     public bool IsRunning => _blockyService.IsRunning;
 
+    // ReSharper disable once CollectionNeverQueried.Global - Bound to UI
     public ObservableCollection<BlockyRule> Rules { get; private set; } = [];
-    
-    Task LoadAsync()
+
+    async Task LoadAsync()
     {
-        return _blockyService
-            .GetAllRulesAsync()
-            .ContinueWith(task =>
-            {
-                Rules = new ObservableCollection<BlockyRule>(task.Result);
-                OnPropertyChanged(nameof(Rules));
-            });
+        var rules = await _blockyService.GetAllRulesAsync();
+        Rules = new ObservableCollection<BlockyRule>(rules);
+        OnPropertyChanged(nameof(Rules));
+        await _blockyService.StartAsync();
+        OnPropertyChanged(nameof(IsRunning));
     }
 
     [RelayCommand]
-    void ToggleSettings()
-    {
-        SettingsViewOpen = !SettingsViewOpen;
-    }
+    void ToggleSettings() => SettingsViewOpen = !SettingsViewOpen;
 
     [RelayCommand]
-    void ToggleProxy()
+    async Task ToggleProxy()
     {
-        if(IsRunning)
+        if (IsRunning)
         {
-            _blockyService.StopAsync();
+            await _blockyService.StopAsync();
         }
         else
         {
-            _blockyService.StartAsync();
+            await _blockyService.StartAsync();
         }
-        
+
         OnPropertyChanged(nameof(IsRunning));
     }
-    
+
+    [RelayCommand]
+    async Task Quit()
+    {
+        await _blockyService.StopAsync();
+        _app.Shutdown();
+    }
+
     [RelayCommand]
     async Task AddRule()
     {
-        var vm = new AddRuleDialogViewModel();
-        var dialog = new AddRuleDialog
+        await _loadTask;
+
+        var vm = new RuleDialogViewModel(new BlockyRule());
+        var dialog = new RuleDialog
         {
             DataContext = vm,
             Owner = _app.MainWindow!,
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
-        
-        if(dialog.ShowDialog() == true)
+
+        if (dialog.ShowDialog() == true)
         {
             var rule = vm.ToBlockyRule();
             await _blockyService.AddRuleAsync(rule);
@@ -98,8 +107,50 @@ public partial class MainWindowViewModel : ObservableObject, IRecipient<CloseSet
         }
     }
 
-    public void Receive(CloseSettingsViewMessage message)
+    [RelayCommand]
+    async Task EditRule(object o)
     {
-        SettingsViewOpen = false;
+        if (o is BlockyRule rule)
+        {
+            await _loadTask;
+
+            var vm = new RuleDialogViewModel(rule);
+            var dialog = new RuleDialog
+            {
+                DataContext = vm,
+                Owner = _app.MainWindow!,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                var updatedRule = vm.ToBlockyRule();
+                await _blockyService.UpdateRuleAsync(updatedRule);
+
+                var index = Rules.IndexOf(rule);
+                Rules[index] = updatedRule;
+            }
+        }
     }
+
+    [RelayCommand]
+    void OpenLog()
+    {
+        try
+        {
+            var logFilePath = _logConfig.GetCurrentLogFilePath();
+            
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = logFilePath,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to open log file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
+    void IRecipient<CloseSettingsViewMessage>.Receive(CloseSettingsViewMessage message) => SettingsViewOpen = false;
 }

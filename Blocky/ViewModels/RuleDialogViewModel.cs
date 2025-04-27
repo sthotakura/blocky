@@ -3,13 +3,14 @@ using System.Windows;
 using Blocky.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using JetBrains.Annotations;
 
 namespace Blocky.ViewModels;
 
-[UsedImplicitly]
-public partial class AddRuleDialogViewModel : ObservableValidator
+public partial class RuleDialogViewModel : ObservableValidator
 {
+    readonly BlockyRule _rule;
+    readonly string[] _timeNames = ["Start Time", "End Time"];
+
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Domain is required")]
@@ -18,21 +19,18 @@ public partial class AddRuleDialogViewModel : ObservableValidator
 
     [ObservableProperty] bool _hasTimeRestriction;
 
-    [ObservableProperty] TimeSpan? _startTime = new TimeSpan(9, 0, 0); // Default 9 AM
+    [ObservableProperty] TimeSpan? _startTime = new TimeSpan(8, 0, 0);
 
-    [ObservableProperty] TimeSpan? _endTime = new TimeSpan(17, 0, 0); // Default 5 PM
+    [ObservableProperty] TimeSpan? _endTime = new TimeSpan(19, 0, 0);
 
-    public BlockyRule ToBlockyRule()
+    public RuleDialogViewModel(BlockyRule rule)
     {
-        return new BlockyRule
-        {
-            Id = Guid.NewGuid(),
-            Domain = Domain,
-            IsEnabled = true,
-            HasTimeRestriction = HasTimeRestriction,
-            StartTime = HasTimeRestriction ? StartTime : null,
-            EndTime = HasTimeRestriction ? EndTime : null
-        };
+        _rule = rule ?? throw new ArgumentNullException(nameof(rule));
+
+        Domain = _rule.Domain;
+        HasTimeRestriction = _rule.HasTimeRestriction;
+        StartTime = _rule.StartTime;
+        EndTime = _rule.EndTime;
     }
 
     partial void OnHasTimeRestrictionChanged(bool value)
@@ -44,8 +42,8 @@ public partial class AddRuleDialogViewModel : ObservableValidator
         }
         else if (StartTime == null || EndTime == null)
         {
-            StartTime = new TimeSpan(9, 0, 0);
-            EndTime = new TimeSpan(17, 0, 0);
+            StartTime = new TimeSpan(8, 0, 0);
+            EndTime = new TimeSpan(19, 0, 0);
         }
     }
 
@@ -53,7 +51,7 @@ public partial class AddRuleDialogViewModel : ObservableValidator
     void Save(Window window)
     {
         ClearErrors();
-        
+
         ValidateAllProperties();
 
         if (HasErrors)
@@ -75,9 +73,8 @@ public partial class AddRuleDialogViewModel : ObservableValidator
         if (StartTime == null || EndTime == null)
         {
             // Using proper validation method
-            var validationResult = new ValidationResult(
-                "Time range must be specified when time restriction is enabled",
-                [nameof(StartTime)]);
+            var validationResult = new ValidationResult("Time range must be specified when time restriction is enabled",
+                _timeNames);
             ValidateProperty(validationResult, nameof(StartTime));
             return;
         }
@@ -86,8 +83,21 @@ public partial class AddRuleDialogViewModel : ObservableValidator
         {
             var validationResult = new ValidationResult(
                 "Start time cannot be the same as end time",
-                [nameof(StartTime)]);
+                _timeNames);
             ValidateProperty(validationResult, nameof(StartTime));
         }
+    }
+
+    public BlockyRule ToBlockyRule()
+    {
+        return new BlockyRule
+        {
+            Id = _rule.Id,
+            Domain = Domain,
+            IsEnabled = true,
+            HasTimeRestriction = HasTimeRestriction,
+            StartTime = HasTimeRestriction ? StartTime : null,
+            EndTime = HasTimeRestriction ? EndTime : null
+        };
     }
 }

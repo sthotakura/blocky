@@ -2,9 +2,9 @@ using System.Windows;
 
 namespace Blocky.Views;
 
-public partial class AddRuleDialog
+public partial class RuleDialog
 {
-    public AddRuleDialog()
+    public RuleDialog()
     {
         InitializeComponent();
     }

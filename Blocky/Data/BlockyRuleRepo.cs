@@ -39,7 +39,7 @@ public sealed class BlockyRuleRepo(AppDbContext context, ITimerService timerServ
         }
 
         rule.LastUpdated = DateTime.UtcNow;
-        context.Rules.Update(rule);
+        context.Entry(existing).CurrentValues.SetValues(rule);
         await context.SaveChangesAsync();
     }
 

@@ -1,7 +1,4 @@
-﻿using System.Configuration;
-using System.Data;
-using System.Windows;
-using Microsoft.Extensions.DependencyInjection;
+﻿using System.Windows;
 
 namespace Blocky;
 

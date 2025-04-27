@@ -1,4 +1,5 @@
 using System.IO;
+using System.Windows;
 using Blocky.Data;
 using Blocky.Services;
 using Blocky.ViewModels;
@@ -18,6 +19,7 @@ public class Bootstrapper
     public void Run()
     {
         ConfigureLogging();
+        
         var serviceProvider = ConfigureServices();
         ConfigureDatabase(serviceProvider);
         
@@ -25,15 +27,15 @@ public class Bootstrapper
         var mainWindowViewModel = serviceProvider.GetRequiredService<MainWindowViewModel>();
         mainWindow.DataContext = mainWindowViewModel;
         mainWindow.Show();
+        mainWindow.WindowState = WindowState.Minimized;
     }
 
-    void ConfigureLogging()
+    static void ConfigureLogging()
     {
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .WriteTo.File(
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Blocky",
-                    "logs", "log-.txt"),
+                LogConfig.GetLogFilePattern(),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 7
             )
@@ -58,6 +60,7 @@ public class Bootstrapper
             .AddSingleton<IBlockyService, BlockyService>()
             .AddSingleton<ISettingsService, SettingService>()
             .AddSingleton<IApplication, DefaultApplication>()
+            .AddSingleton<ILogConfig, LogConfig>()
             .AddSingleton<IMessenger, WeakReferenceMessenger>()
             .AddSingleton<SettingsViewModel>()
             .AddSingleton<MainWindowViewModel>()
