@@ -2,7 +2,7 @@
 
 Blocky is a simple website blocker for Windows.
 
-It lets you define domains and schedules, and blocks access using a PAC (Proxy Auto-Config) file — no admin access or browser extensions required.
+It lets you define domains and schedules, and blocks access using a PAC (Proxy Auto-Config) file - no admin access or browser extensions required.
 
 ---
 
@@ -50,4 +50,4 @@ It lets you define domains and schedules, and blocks access using a PAC (Proxy A
 
 ## ❗ Disclaimer
 
-This is an experimental tool — use at your own discretion.
+This is an experimental tool - use at your own discretion.
