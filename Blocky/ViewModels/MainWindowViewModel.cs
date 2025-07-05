@@ -38,8 +38,6 @@ public partial class MainWindowViewModel : ObservableObject, IRecipient<CloseSet
         _loadTask = LoadAsync();
     }
 
-    public bool IsRunning => _blockyService.IsRunning;
-
     // ReSharper disable once CollectionNeverQueried.Global - Bound to UI
     public ObservableCollection<BlockyRule> Rules { get; private set; } = [];
 
@@ -48,32 +46,14 @@ public partial class MainWindowViewModel : ObservableObject, IRecipient<CloseSet
         var rules = await _blockyService.GetAllRulesAsync();
         Rules = new ObservableCollection<BlockyRule>(rules);
         OnPropertyChanged(nameof(Rules));
-        await _blockyService.StartAsync();
-        OnPropertyChanged(nameof(IsRunning));
     }
 
     [RelayCommand]
     void ToggleSettings() => SettingsViewOpen = !SettingsViewOpen;
 
     [RelayCommand]
-    async Task ToggleProxy()
+    void Quit()
     {
-        if (IsRunning)
-        {
-            await _blockyService.StopAsync();
-        }
-        else
-        {
-            await _blockyService.StartAsync();
-        }
-
-        OnPropertyChanged(nameof(IsRunning));
-    }
-
-    [RelayCommand]
-    async Task Quit()
-    {
-        await _blockyService.StopAsync();
         _app.Shutdown();
     }
 

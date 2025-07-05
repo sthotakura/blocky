@@ -4,107 +4,18 @@ using Microsoft.Extensions.Logging;
 
 namespace Blocky.Services;
 
-public sealed class BlockyService : IBlockyService, IAsyncDisposable
+public sealed class BlockyService(
+    ILogger<BlockyService> logger,
+    ICachedBlockyRuleRepo repo,
+    IDateTimeService dateTimeService) : IBlockyService
 {
-    readonly ILogger<BlockyService> _logger;
-    readonly IBlockyRuleRepo _repo;
-    readonly ISettingsService _settingsService;
-    readonly Task _initializeTask;
-
-    public BlockyService(ILogger<BlockyService> logger, ICachedBlockyRuleRepo repo,
-        ISettingsService settingsService)
-    {
-        _logger = logger;
-        _repo = repo;
-        _settingsService = settingsService;
-        _settingsService.SettingsUpdated += OnSettingsChanged;
-
-        _initializeTask = InitializeAsync();
-    }
-
-    async Task InitializeAsync()
-    {
-        _logger.LogInformation("Initializing Blocky service from saved state . . .");
-
-        var settings = await _settingsService.GetSettingsAsync();
-        if (settings.IsRunning)
-        {
-            await StartImplAsync();
-        }
-    }
-
-    async void OnSettingsChanged(object? sender, BlockySettings e)
-    {
-        try
-        {
-            if (!IsRunning) return;
-
-            _logger.LogInformation("Settings changed, restarting Blocky service . . .");
-
-            await StopAsync();
-            await Task.Delay(1000);
-            await StartAsync();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error restarting Blocky service");
-        }
-    }
-
-    public bool IsRunning { get; private set; }
-
-    public async Task StartAsync()
-    {
-        await _initializeTask;
-
-        await StartImplAsync();
-    }
-
-    async Task StartImplAsync()
-    {
-        if (IsRunning) return;
-
-        _logger.LogInformation("Starting Blocky service");
-
-        var settings = await _settingsService.GetSettingsAsync();
-
-        SetSystemProxy("127.0.0.1", settings.ProxyPort);
-
-        IsRunning = true;
-        await SetRunningStateAsync();
-    }
-
-    public async Task StopAsync()
-    {
-        await _initializeTask;
-
-        await StopImplAsync();
-    }
-
-    async Task StopImplAsync()
-    {
-        if (!IsRunning) return;
-
-        _logger.LogInformation("Stopping Blocky service");
-
-        ClearSystemProxy();
-
-        IsRunning = false;
-        await SetRunningStateAsync();
-    }
-
-    async Task SetRunningStateAsync()
-    {
-        var settings = await _settingsService.GetSettingsAsync();
-        settings.IsRunning = IsRunning;
-        await _settingsService.UpdateSettingsAsync(settings);
-    }
+    readonly IBlockyRuleRepo _repo = repo;
 
     public Task AddRuleAsync(BlockyRule rule)
     {
         ArgumentNullException.ThrowIfNull(rule);
 
-        _logger.LogInformation("Adding rule {rule}", rule);
+        logger.LogInformation("Adding rule {rule}", rule);
 
         return _repo.AddAsync(rule);
     }
@@ -113,7 +24,7 @@ public sealed class BlockyService : IBlockyService, IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(updatedRule);
 
-        _logger.LogInformation("Updating rule {rule}", updatedRule);
+        logger.LogInformation("Updating rule {rule}", updatedRule);
 
         return _repo.UpdateAsync(updatedRule);
     }
@@ -122,7 +33,7 @@ public sealed class BlockyService : IBlockyService, IAsyncDisposable
     {
         if (id.Equals(Guid.Empty)) throw new ArgumentException("Invalid rule id");
 
-        _logger.LogInformation("Removing rule with id {id}", id);
+        logger.LogInformation("Removing rule with id {id}", id);
 
         return _repo.DeleteAsync(id);
     }
@@ -136,45 +47,50 @@ public sealed class BlockyService : IBlockyService, IAsyncDisposable
 
     public Task<List<BlockyRule>> GetAllRulesAsync() => _repo.GetAllRulesAsync();
 
-    void SetSystemProxy(string host, int port)
+    public async ValueTask<bool> IsDomainBlockedAsync(string domain)
     {
-        var internetSettingsKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
-            @"Software\Microsoft\Windows\CurrentVersion\Internet Settings",
-            true);
+        ArgumentNullException.ThrowIfNull(domain);
+        if (string.IsNullOrWhiteSpace(domain)) throw new ArgumentException("Domain cannot be null or empty");
 
-        if (internetSettingsKey == null)
-        {
-            _logger.LogError("Could not find internet settings key");
-            return;
-        }
+        logger.LogInformation("Checking if domain {domain} is blocked", domain);
 
-        var pacUrl = $"http://{host}:{port}/blocky.pac?t={DateTimeOffset.UtcNow.ToUnixTimeSeconds()}";
+        var now = dateTimeService.Now.TimeOfDay;
+        var rules = await _repo.GetActiveRulesAsync();
 
-        _logger.LogInformation("Setting system proxy to {pacUrl}", pacUrl);
+        var shouldBlock = rules.Any(rule =>
+            IsExactOrWwwOnly(domain, rule.Domain) &&
+            (!rule.HasTimeRestriction ||
+             (rule is { StartTime: not null, EndTime: not null } &&
+              now >= rule.StartTime.Value && now < rule.EndTime.Value)));
 
-        internetSettingsKey.SetValue("AutoConfigURL", pacUrl);
-        internetSettingsKey.SetValue("ProxyEnable", 0);
+        logger.LogInformation("Domain {domain} is {status}", domain, shouldBlock ? "blocked" : "not blocked");
+
+        return shouldBlock;
     }
 
-    void ClearSystemProxy()
+    public async ValueTask<string[]> GetBlockedDomainsAsync()
     {
-        _logger.LogInformation("Clearing system proxy settings");
+        logger.LogInformation("Retrieving all blocked domains");
 
-        var internetSettingsKey = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
-            @"Software\Microsoft\Windows\CurrentVersion\Internet Settings",
-            true);
+        var rules = await _repo.GetActiveRulesAsync();
 
-        if (internetSettingsKey == null)
-        {
-            _logger.LogError("Could not find internet settings key");
-            return;
-        }
+        var now = dateTimeService.Now.TimeOfDay;
+        var blockedDomains = rules
+            .Where(rule => rule.IsEnabled && !string.IsNullOrWhiteSpace(rule.Domain) && ((!rule.HasTimeRestriction ||
+                (rule is { StartTime: not null, EndTime: not null } &&
+                 now >= rule.StartTime.Value && now < rule.EndTime.Value))))
+            .Select(rule => rule.Domain)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
 
-        internetSettingsKey.DeleteValue("AutoConfigURL", false);
+        logger.LogInformation("Found {count} blocked domains", blockedDomains.Length);
+
+        return blockedDomains;
     }
 
-    public async ValueTask DisposeAsync()
+    static bool IsExactOrWwwOnly(string host, string ruleDomain)
     {
-        await StopAsync();
+        return string.Equals(host, ruleDomain, StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(host, $"www.{ruleDomain}", StringComparison.OrdinalIgnoreCase);
     }
 }

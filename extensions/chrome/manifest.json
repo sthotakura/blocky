@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Blocky Chrome Extension",
+  "version": "0.1",
+  "description": "Blocks distracting websites",
+  "permissions": [
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess",
+    "webRequest",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Blocky"
+  }
+}

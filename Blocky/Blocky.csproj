@@ -61,9 +61,6 @@
 
     <ItemGroup>
       <None Remove="Resources\blocky-page.html" />
-      <Content Include="Resources\blocked.html">
-        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      </Content>
       <None Update="install.ps1">
         <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       </None>

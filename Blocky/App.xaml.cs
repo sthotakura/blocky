@@ -62,8 +62,6 @@ public partial class App
                         options.UseSqlite($"Filename={dbPath}");
                     })
                     .AddSingleton<ITimerService, TimerService>()
-                    .AddSingleton<IBlockedPageProvider, BlockedPageProvider>()
-                    .AddSingleton<IPacFileProvider, PacFileProvider>()
                     .AddSingleton<IBlockyRuleRepo, BlockyRuleRepo>()
                     .AddSingleton<ICachedBlockyRuleRepo, CachedBlockyRuleRepo>()
                     .AddSingleton<IDateTimeService, DefaultDateTimeService>()

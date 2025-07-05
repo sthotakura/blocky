@@ -4,12 +4,6 @@ namespace Blocky.Services.Contracts;
 
 public interface IBlockyService
 {
-    bool IsRunning { get; }
-
-    Task StartAsync();
-
-    Task StopAsync();
-
     Task AddRuleAsync(BlockyRule rule);
     
     Task UpdateRuleAsync(BlockyRule updatedRule);
@@ -19,4 +13,8 @@ public interface IBlockyService
     ValueTask<BlockyRule?> GetRuleAsync(Guid id);
 
     Task<List<BlockyRule>> GetAllRulesAsync();
+    
+    ValueTask<bool> IsDomainBlockedAsync(string domain);
+    
+    ValueTask<string[]> GetBlockedDomainsAsync();
 }
