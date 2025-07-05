@@ -1,4 +1,5 @@
 using System.Windows;
+using Blocky.Services.Contracts;
 
 namespace Blocky.Services;
 

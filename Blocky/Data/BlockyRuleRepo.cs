@@ -1,29 +1,33 @@
-using Blocky.Services;
+using Blocky.Services.Contracts;
 using Microsoft.EntityFrameworkCore;
 
 namespace Blocky.Data;
 
-public sealed class BlockyRuleRepo(AppDbContext context, ITimerService timerService) : IBlockyRuleRepo
+public sealed class BlockyRuleRepo(IDbContextFactory<AppDbContext> dbContextFactory, ITimerService timerService)
+    : IBlockyRuleRepo
 {
-    public Task<List<BlockyRule>> GetAllRulesAsync()
+    public async Task<List<BlockyRule>> GetAllRulesAsync()
     {
-        using var timer = timerService.Create(nameof(GetAllRulesAsync));
-        return context.Rules.ToListAsync();
+        await using var timer = timerService.Create(nameof(GetAllRulesAsync));
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.Rules.ToListAsync();
     }
 
-    public ValueTask<BlockyRule?> GetByIdAsync(Guid id)
+    public async ValueTask<BlockyRule?> GetByIdAsync(Guid id)
     {
-        using var timer = timerService.Create($"GetByIdAsync/{id}");
-        return context.Rules.FindAsync(id);
+        await using var timer = timerService.Create($"GetByIdAsync/{id}");
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.Rules.FindAsync(id);
     }
 
-    public Task AddAsync(BlockyRule rule)
+    public async Task AddAsync(BlockyRule rule)
     {
         ArgumentNullException.ThrowIfNull(rule);
 
-        using var timer = timerService.Create($"Add rule: {rule}");
+        await using var timer = timerService.Create($"Add rule: {rule}");
+        await using var context = await dbContextFactory.CreateDbContextAsync();
         context.Rules.Add(rule);
-        return context.SaveChangesAsync();
+        await context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(BlockyRule rule)
@@ -31,7 +35,7 @@ public sealed class BlockyRuleRepo(AppDbContext context, ITimerService timerServ
         ArgumentNullException.ThrowIfNull(rule);
 
         await using var timer = timerService.Create($"Update rule: {rule}");
-        
+        await using var context = await dbContextFactory.CreateDbContextAsync();
         var existing = await context.Rules.FindAsync(rule.Id);
         if (existing == null)
         {
@@ -48,7 +52,7 @@ public sealed class BlockyRuleRepo(AppDbContext context, ITimerService timerServ
         if (id.Equals(Guid.Empty)) throw new ArgumentException("Invalid rule id");
 
         await using var timer = timerService.Create($"Delete Rule: {id}");
-        
+        await using var context = await dbContextFactory.CreateDbContextAsync();
         var existing = await context.Rules.FindAsync(id);
         if (existing == null)
         {
@@ -59,5 +63,9 @@ public sealed class BlockyRuleRepo(AppDbContext context, ITimerService timerServ
         await context.SaveChangesAsync();
     }
 
-    public Task<List<BlockyRule>> GetActiveRulesAsync() => context.Rules.Where(r => r.IsEnabled).ToListAsync();
+    public async Task<List<BlockyRule>> GetActiveRulesAsync()
+    {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
+        return await context.Rules.Where(r => r.IsEnabled).ToListAsync();
+    }
 }

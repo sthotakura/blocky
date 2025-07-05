@@ -2,6 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Blocky.Data;
 using Blocky.Messages;
 using Blocky.Services;
+using Blocky.Services.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;

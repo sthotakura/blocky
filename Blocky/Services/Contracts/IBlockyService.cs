@@ -1,6 +1,6 @@
 using Blocky.Data;
 
-namespace Blocky.Services;
+namespace Blocky.Services.Contracts;
 
 public interface IBlockyService
 {

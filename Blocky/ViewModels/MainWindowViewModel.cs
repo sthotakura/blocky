@@ -4,6 +4,7 @@ using System.Windows;
 using Blocky.Data;
 using Blocky.Messages;
 using Blocky.Services;
+using Blocky.Services.Contracts;
 using Blocky.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;

@@ -1,5 +1,7 @@
 using System.Diagnostics;
+using Blocky.Services.Contracts;
 using Microsoft.Extensions.Logging;
+using ITimer = Blocky.Services.Contracts.ITimer;
 
 namespace Blocky.Services;
 

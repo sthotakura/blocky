@@ -1,12 +1,14 @@
 using Blocky.Data;
+using Blocky.Services.Contracts;
 using Microsoft.EntityFrameworkCore;
 
 namespace Blocky.Services;
 
-public sealed class SettingService(AppDbContext context) : ISettingsService
+public sealed class SettingService(IDbContextFactory<AppDbContext> dbContextFactory) : ISettingsService
 {
     public async Task<BlockySettings> GetSettingsAsync()
     {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
         var settings = await context.Settings.FirstOrDefaultAsync();
         
         if (settings == null)
@@ -21,6 +23,7 @@ public sealed class SettingService(AppDbContext context) : ISettingsService
 
     public async Task UpdateSettingsAsync(BlockySettings settings)
     {
+        await using var context = await dbContextFactory.CreateDbContextAsync();
         var existingSettings = await context.Settings.FirstOrDefaultAsync();
         if (existingSettings != null)
         {

@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace Blocky.Services;
+namespace Blocky.Services.Contracts;
 
 public interface IApplication
 {

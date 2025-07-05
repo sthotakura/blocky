@@ -1,29 +1,12 @@
-using System.IO;
 using Microsoft.EntityFrameworkCore;
 
 namespace Blocky.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    readonly string _dbPath;
-    
     public DbSet<BlockyRule> Rules { get; set; }
 
     public DbSet<BlockySettings> Settings { get; set; }
-    
-    public AppDbContext()
-    {
-        const Environment.SpecialFolder folder = Environment.SpecialFolder.LocalApplicationData;
-        var folderPath = Environment.GetFolderPath(folder);
-        _dbPath = Path.Join(folderPath, "Blocky", "blocky.db");
-    }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        EnsureDatabaseCreated();
-        
-        optionsBuilder.UseSqlite($"Filename={_dbPath}");
-    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -44,16 +27,5 @@ public class AppDbContext : DbContext
                 v => v.HasValue ? TimeSpan.FromMinutes(v.Value) : null);
         
         modelBuilder.Entity<BlockySettings>().HasData(new BlockySettings());
-    }
-
-    void EnsureDatabaseCreated()
-    {
-        if (File.Exists(_dbPath))
-        {
-            return;
-        }
-        
-        Directory.CreateDirectory(Path.GetDirectoryName(_dbPath)!);
-        File.Create(_dbPath).Close();
     }
 }
