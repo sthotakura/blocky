@@ -42,19 +42,6 @@
                 <ContextMenu>
                     <systemTray:ShowWindowMenuItem Header="Blocky" FontWeight="Bold"/>
                     <Separator />
-                    <MenuItem Command="{Binding ToggleProxyCommand}">
-                        <MenuItem.Style>
-                            <Style TargetType="MenuItem" BasedOn="{StaticResource MenuItemStyle}">
-                                <Setter Property="Header" Value="Start" />
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding IsRunning}" Value="True">
-                                        <Setter Property="Header" Value="Stop" />
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </MenuItem.Style>
-                    </MenuItem>
-                    <Separator />
                     <MenuItem Command="{Binding QuitCommand}" Header="Quit" />
                 </ContextMenu>
             </systemTray:TrayIcon.ContextMenu>
