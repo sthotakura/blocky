@@ -94,13 +94,22 @@ public partial class App
         mainWindow.WindowState = WindowState.Minimized;
     }
 
-    protected override void OnExit(ExitEventArgs e)
+    protected override async void OnExit(ExitEventArgs e)
     {
-        _host.StopAsync().GetAwaiter().GetResult();
-        _host.Dispose();
-        Log.CloseAndFlush();
-
-        base.OnExit(e);
+        try
+        {
+            await _host.StopAsync();
+            _host.Dispose();
+            await Log.CloseAndFlushAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "An error occurred while stopping the application");
+        }
+        finally
+        {
+            base.OnExit(e);
+        }
     }
 
     static void ConfigureDatabase(IServiceProvider serviceProvider)

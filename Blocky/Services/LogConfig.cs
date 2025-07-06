@@ -16,13 +16,11 @@ public class LogConfig : ILogConfig
             "Blocky", "logs");
     }
 
-    public static string GetLogFilePattern() => Path.Combine(GetLogBaseDirectory(), "log-.log");
-
     public string GetCurrentLogFilePath()
     {
         var todayLogFile = Path.Combine(
             GetLogBaseDirectory(), 
-            $"log-{DateTime.Now:yyyyMMdd}.log");
+            $"Blocky-{DateTime.Now:yyyyMMdd}.log");
             
         if (File.Exists(todayLogFile))
         {
@@ -32,7 +30,7 @@ public class LogConfig : ILogConfig
         // If today's log doesn't exist yet, try to find the most recent log file
         if (Directory.Exists(GetLogBaseDirectory()))
         {
-            var logFiles = Directory.GetFiles(GetLogBaseDirectory(), "log-*.log")
+            var logFiles = Directory.GetFiles(GetLogBaseDirectory(), "Blocky-*.log")
                 .OrderByDescending(f => new FileInfo(f).LastWriteTime)
                 .ToArray();
                 

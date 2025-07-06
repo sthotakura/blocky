@@ -119,8 +119,13 @@ public sealed class BlockyWebServer(
     {
         try
         {
+            _timer?.Stop(); // Stop the timer to prevent re-entrancy issues
+            
+            logger.LogInformation("WebSocket message broadcast timer elapsed");
+            
             if (_webSocketClients.Count == 0)
             {
+                logger.LogInformation("No WebSocket clients connected, skipping broadcast");
                 return;
             }
 
@@ -128,6 +133,7 @@ public sealed class BlockyWebServer(
 
             if (!changed)
             {
+                logger.LogInformation("No changes in blocked domains, skipping broadcast");
                 return;
             }
 

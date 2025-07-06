@@ -9,7 +9,7 @@ public sealed class SettingService(IDbContextFactory<AppDbContext> dbContextFact
     public async Task<BlockySettings> GetSettingsAsync()
     {
         await using var context = await dbContextFactory.CreateDbContextAsync();
-        var settings = await context.Settings.FirstOrDefaultAsync();
+        var settings = await context.Settings.OrderBy(s => s.Id).FirstOrDefaultAsync();
         
         if (settings == null)
         {
