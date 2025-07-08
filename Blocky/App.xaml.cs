@@ -100,11 +100,11 @@ public partial class App
         {
             await _host.StopAsync();
             _host.Dispose();
-            await Log.CloseAndFlushAsync();
         }
         catch (Exception ex)
         {
             Log.Error(ex, "An error occurred while stopping the application");
+            await Log.CloseAndFlushAsync();
         }
         finally
         {
