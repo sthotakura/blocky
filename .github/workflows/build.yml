@@ -29,9 +29,15 @@ jobs:
 
       - name: Zip build output
         run: Compress-Archive -Path ./publish/* -DestinationPath ./blocky.zip
+        
+      - name: Package Chrome Extension 
+        run: |
+          Compress-Archive -Path ./extensions/chrome/* -DestinationPath ./blocky-chrome-extension.zip
 
       - name: Upload release artifact
         uses: softprops/action-gh-release@v1
         with:
-          files: ./blocky.zip
+          files: |
+            ./blocky.zip
+            ./blocky-chrome-extension.zip
           
