@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Blocky.Services;
 
-public sealed class SettingService(IDbContextFactory<AppDbContext> dbContextFactory) : ISettingsService
+public sealed class SettingService(IDbContextFactory<AppDbContext> dbContextFactory, IDateTimeService dateTimeService) : ISettingsService
 {
     public async Task<BlockySettings> GetSettingsAsync()
     {
@@ -32,7 +32,7 @@ public sealed class SettingService(IDbContextFactory<AppDbContext> dbContextFact
                 existingSettings.ProxyPort = settings.ProxyPort;
                 SettingsUpdated?.Invoke(this, settings);
             }
-            existingSettings.LastModified = DateTime.UtcNow;
+            existingSettings.LastModified = dateTimeService.UtcNow;
             await context.SaveChangesAsync();
         }
     }
