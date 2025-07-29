@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Blocky Chrome Extension",
+  "name": "Blocky Extension",
   "version": "0.2",
   "description": "Blocks distracting websites",
   "icons": {
