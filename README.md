@@ -25,7 +25,7 @@ It lets you define time-based blocking rules for domains and enforces them throu
    - Go to `chrome://extensions`
    - Enable **Developer Mode**
    - Click **Load Unpacked**
-   - Select the `extension/` folder
+   - Select the `extensions/chrome/` folder
 5. Add block rules in the app UI — you're done!
 
 ---
@@ -38,6 +38,23 @@ It lets you define time-based blocking rules for domains and enforces them throu
 - Rules are updated in real-time without needing restarts
 
 ---
+
+## 🆕 Recent Updates (2025-08-17)
+
+- Chrome Extension (MV3) service worker updated:
+  - Switched to Declarative Net Request `regexFilter` for domain matching; previous Adblock-style `urlFilter` patterns are not supported by Chrome DNR.
+  - Fully refreshes dynamic rules: removes all existing dynamic rules before adding the new set to prevent stale entries.
+  - Robust WebSocket handling with heartbeat (every ~25s) and exponential backoff reconnection; also connects on browser startup.
+- Server (BlockyWebServer.cs): WebSocket handler now keeps connections alive with a receive loop, sends initial data immediately, cleans up on close, and broadcasts changes every 30 seconds.
+
+### Validate the Setup
+
+1. Start Blocky (`Blocky.exe`). It hosts HTTP on `http://localhost:8080` by default and a WebSocket at `ws://localhost:8080/ws`.
+2. Load the Chrome extension from `extensions/chrome/`.
+3. Open chrome://extensions → Blocky → “Service Worker” (Inspect). You should see `[Blocky] WebSocket connected`.
+4. Add or edit rules in the app. Within ~30s or immediately on change broadcast, the service worker should log `Blocky: Rules updated` and visits to those domains should redirect to the extension’s `blocked.html`.
+
+Note: If a build fails with a file lock (apphost.exe → Blocky.exe), ensure the running Blocky process is closed and try building again.
 
 ## 🧪 Known Limitations
 
