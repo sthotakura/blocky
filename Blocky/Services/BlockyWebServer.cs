@@ -85,9 +85,67 @@ public sealed class BlockyWebServer(
 
                                     logger.LogInformation("New WebSocket client connected. Total clients: {count}",
                                         _webSocketClients.Count);
-                                    await UpdateLastSentAsync();
-                                    var buffer = GetLastSentBuffer();
-                                    await SendWebSocketMessageAsync(webSocket, buffer);
+
+                                    try
+                                    {
+                                        // Send the latest data immediately upon connection
+                                        await UpdateLastSentAsync();
+                                        var initialBuffer = GetLastSentBuffer();
+                                        await SendWebSocketMessageAsync(webSocket, initialBuffer);
+
+                                        // Keep the socket alive by reading messages until the client closes
+                                        var recvBuffer = new byte[4096];
+                                        using var ms = new System.IO.MemoryStream();
+                                        while (webSocket.State == WebSocketState.Open)
+                                        {
+                                            var result = await webSocket.ReceiveAsync(new ArraySegment<byte>(recvBuffer), CancellationToken.None);
+
+                                            if (result.MessageType == WebSocketMessageType.Close)
+                                            {
+                                                break;
+                                            }
+
+                                            if (result.MessageType == WebSocketMessageType.Text)
+                                            {
+                                                ms.Write(recvBuffer, 0, result.Count);
+                                                if (result.EndOfMessage)
+                                                {
+                                                    var text = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+                                                    ms.SetLength(0);
+                                                    // Optional: respond to simple heartbeat messages
+                                                    // If the client sends {"type":"ping"}, we can ignore or reply with pong
+                                                    // We choose to ignore to reduce chatter; broadcasts are timer-driven
+                                                }
+                                            }
+                                        }
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        logger.LogError(ex, "WebSocket receive loop error");
+                                    }
+                                    finally
+                                    {
+                                        await _webSocketClientsLock.WaitAsync();
+                                        try
+                                        {
+                                            _webSocketClients.Remove(webSocket);
+                                        }
+                                        finally
+                                        {
+                                            _webSocketClientsLock.Release();
+                                        }
+
+                                        try
+                                        {
+                                            await webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+                                        }
+                                        catch
+                                        {
+                                            // ignore
+                                        }
+
+                                        logger.LogInformation("WebSocket client disconnected. Total clients: {count}", _webSocketClients.Count);
+                                    }
                                 }
                                 else
                                 {
@@ -106,7 +164,7 @@ public sealed class BlockyWebServer(
             })
             .Build();
 
-        _timer = new Timer(30000); // 15 minutes
+        _timer = new Timer(30000); // 30 seconds
         _timer.Elapsed += OnTimerOnElapsed;
         _timer.Start();
 
