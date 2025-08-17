@@ -10,6 +10,8 @@
         <ApplicationIcon>productivity-blocker-icon.ico</ApplicationIcon>
         <AssemblyVersion>0.1.0.0</AssemblyVersion>
         <FileVersion>0.1.0.0</FileVersion>
+        <!-- WPF is not supported/recommended with trimming. See NETSDK1168 and https://aka.ms/dotnet-illink/wpf -->
+        <PublishTrimmed>false</PublishTrimmed>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
