@@ -1,13 +1,11 @@
 using System.Net.WebSockets;
 using System.Text.Json;
-using System.Timers;
 using Blocky.Services.Contracts;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Timer = System.Timers.Timer;
 
 namespace Blocky.Services;
 
@@ -15,7 +13,7 @@ public sealed class BlockyWebServer(
     ILogger<BlockyWebServer> logger,
     ISettingsService settingsService,
     IBlockyService blockyService)
-    : IBlockyWebServer
+    : IBlockyWebServer, IDisposable
 {
     IHost? _webHost;
     readonly List<WebSocket> _webSocketClients = [];
@@ -24,7 +22,9 @@ public sealed class BlockyWebServer(
     string[] _lastSent = [];
     readonly Lock _lastSentLock = new();
 
-    Timer? _timer;
+    PeriodicTimer? _timer;
+    CancellationTokenSource? _timerCts;
+    Task? _timerTask;
 
     public async Task StartAsync()
     {
@@ -110,7 +110,7 @@ public sealed class BlockyWebServer(
                                                 ms.Write(recvBuffer, 0, result.Count);
                                                 if (result.EndOfMessage)
                                                 {
-                                                    var text = System.Text.Encoding.UTF8.GetString(ms.ToArray());
+                                                    _ = System.Text.Encoding.UTF8.GetString(ms.ToArray());
                                                     ms.SetLength(0);
                                                     // Optional: respond to simple heartbeat messages
                                                     // If the client sends {"type":"ping"}, we can ignore or reply with pong
@@ -164,46 +164,51 @@ public sealed class BlockyWebServer(
             })
             .Build();
 
-        _timer = new Timer(30000); // 30 seconds
-        _timer.Elapsed += OnTimerOnElapsed;
-        _timer.Start();
+        _timerCts = new CancellationTokenSource();
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        _timerTask = RunBroadcastLoopAsync(_timerCts.Token);
 
         await _webHost.StartAsync();
 
         logger.LogInformation("Blocky web server started successfully.");
     }
 
-    async void OnTimerOnElapsed(object? sender, ElapsedEventArgs e)
+    async Task RunBroadcastLoopAsync(CancellationToken ct)
     {
         try
         {
-            _timer?.Stop(); // Stop the timer to prevent re-entrancy issues
-            
-            logger.LogInformation("WebSocket message broadcast timer elapsed");
-            
-            if (_webSocketClients.Count == 0)
+            while (await _timer!.WaitForNextTickAsync(ct))
             {
-                logger.LogInformation("No WebSocket clients connected, skipping broadcast");
-                return;
+                try
+                {
+                    logger.LogInformation("WebSocket message broadcast timer elapsed");
+
+                    if (_webSocketClients.Count == 0)
+                    {
+                        logger.LogInformation("No WebSocket clients connected, skipping broadcast");
+                        continue;
+                    }
+
+                    var changed = await UpdateLastSentAsync();
+
+                    if (!changed)
+                    {
+                        logger.LogInformation("No changes in blocked domains, skipping broadcast");
+                        continue;
+                    }
+
+                    await BroadCastLastSentAsync();
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error during WebSocket message broadcast");
+                    // Continue loop even if one iteration fails
+                }
             }
-
-            var changed = await UpdateLastSentAsync();
-
-            if (!changed)
-            {
-                logger.LogInformation("No changes in blocked domains, skipping broadcast");
-                return;
-            }
-
-            await BroadCastLastSentAsync();
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
         {
-            logger.LogError(ex, "Error during WebSocket message broadcast");
-        }
-        finally
-        {
-            _timer?.Start(); // Restart the timer for the next interval
+            logger.LogInformation("Broadcast timer cancelled");
         }
     }
 
@@ -229,17 +234,27 @@ public sealed class BlockyWebServer(
         }
     }
 
-    static async Task SendWebSocketMessageAsync(WebSocket client, byte[] buffer)
+    async Task SendWebSocketMessageAsync(WebSocket client, byte[] buffer)
     {
-        await client.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true,
-            CancellationToken.None);
+        try
+        {
+            await client.SendAsync(new ArraySegment<byte>(buffer), WebSocketMessageType.Text, true,
+                CancellationToken.None);
+        }
+        catch (Exception e)
+        {
+            logger.LogError(e, "Error sending WebSocket message");
+        }
     }
 
     byte[] GetLastSentBuffer()
     {
-        var message = JsonSerializer.Serialize(_lastSent);
-        var buffer = System.Text.Encoding.UTF8.GetBytes(message);
-        return buffer;
+        lock (_lastSentLock)
+        {
+            var message = JsonSerializer.Serialize(_lastSent);
+            var buffer = System.Text.Encoding.UTF8.GetBytes(message);
+            return buffer;
+        }
     }
 
     async Task<bool> UpdateLastSentAsync()
@@ -269,12 +284,35 @@ public sealed class BlockyWebServer(
 
         logger.LogInformation("Stopping Blocky web server...");
 
-        if(_timer is not null)
+        // Cancel and wait for timer task
+        await _timerCts?.CancelAsync()!;
+        _timer?.Dispose();
+
+        if (_timerTask != null)
         {
-            _timer.Stop();
-            _timer.Dispose();
+            try
+            {
+                await _timerTask;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error stopping broadcast timer");
+            }
         }
-        
+
         await _webHost.StopAsync();
+    }
+
+    public void Dispose()
+    {
+        _webSocketClients.ForEach(client => client.Dispose());
+        _webSocketClients.Clear();
+
+        _timerCts?.Cancel();
+        _timerCts?.Dispose();
+        _timer?.Dispose();
+
+        _webHost?.Dispose();
+        _webSocketClientsLock.Dispose();
     }
 }

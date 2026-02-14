@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.RegularExpressions;
 using System.Windows;
 using Blocky.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -11,10 +12,17 @@ public partial class RuleDialogViewModel : ObservableValidator
     readonly BlockyRule _rule;
     readonly string[] _timeNames = ["Start Time", "End Time"];
 
+    // Domain validation regex: allows domain names like example.com, sub.example.com
+    // Does not allow protocols (http://), paths (/path), ports (:8080), or special chars
+    static readonly Regex DomainRegex = new(
+        @"^(?:[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9](?:[a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?$",
+        RegexOptions.Compiled);
+
     [ObservableProperty]
     [NotifyDataErrorInfo]
     [Required(ErrorMessage = "Domain is required")]
     [MinLength(3, ErrorMessage = "Domain must be at least 3 characters")]
+    [MaxLength(253, ErrorMessage = "Domain must be less than 253 characters")]
     string _domain = string.Empty;
 
     [ObservableProperty] bool _hasTimeRestriction;
@@ -57,6 +65,11 @@ public partial class RuleDialogViewModel : ObservableValidator
         if (HasErrors)
             return;
 
+        // Validate domain format
+        ValidateDomainFormat();
+        if (HasErrors)
+            return;
+
         if (HasTimeRestriction)
         {
             ValidateTimeRange();
@@ -66,6 +79,54 @@ public partial class RuleDialogViewModel : ObservableValidator
 
         window.DialogResult = true;
         window.Close();
+    }
+
+    void ValidateDomainFormat()
+    {
+        if (string.IsNullOrWhiteSpace(Domain))
+        {
+            return; // Already handled by Required attribute
+        }
+
+        var trimmedDomain = Domain.Trim();
+
+        // Check for invalid patterns
+        if (trimmedDomain.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+            trimmedDomain.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        {
+            var validationResult = new ValidationResult(
+                "Domain should not include protocol (http:// or https://)",
+                [nameof(Domain)]);
+            ValidateProperty(validationResult, nameof(Domain));
+            return;
+        }
+
+        if (trimmedDomain.Contains('/') || trimmedDomain.Contains('?') || trimmedDomain.Contains('#'))
+        {
+            var validationResult = new ValidationResult(
+                "Domain should not include paths, query strings, or fragments",
+                [nameof(Domain)]);
+            ValidateProperty(validationResult, nameof(Domain));
+            return;
+        }
+
+        if (trimmedDomain.Contains(':') && !trimmedDomain.StartsWith('[')) // Allow IPv6
+        {
+            var validationResult = new ValidationResult(
+                "Domain should not include port numbers",
+                [nameof(Domain)]);
+            ValidateProperty(validationResult, nameof(Domain));
+            return;
+        }
+
+        // Validate against domain format regex
+        if (!DomainRegex.IsMatch(trimmedDomain))
+        {
+            var validationResult = new ValidationResult(
+                "Invalid domain format. Use format like: example.com or subdomain.example.com",
+                [nameof(Domain)]);
+            ValidateProperty(validationResult, nameof(Domain));
+        }
     }
 
     void ValidateTimeRange()
@@ -93,11 +154,13 @@ public partial class RuleDialogViewModel : ObservableValidator
         return new BlockyRule
         {
             Id = _rule.Id,
-            Domain = Domain,
+            Domain = Domain.Trim(), // Trim whitespace from domain
             IsEnabled = true,
             HasTimeRestriction = HasTimeRestriction,
             StartTime = HasTimeRestriction ? StartTime : null,
-            EndTime = HasTimeRestriction ? EndTime : null
+            EndTime = HasTimeRestriction ? EndTime : null,
+            LastUpdated = DateTime.UtcNow,
+            CreatedAt = _rule.CreatedAt
         };
     }
 }

@@ -43,9 +43,20 @@ public partial class MainWindowViewModel : ObservableObject, IRecipient<CloseSet
 
     async Task LoadAsync()
     {
-        var rules = await _blockyService.GetAllRulesAsync();
-        Rules = new ObservableCollection<BlockyRule>(rules);
-        OnPropertyChanged(nameof(Rules));
+        List<BlockyRule>? rules = null;
+        try
+        {
+            rules = await _blockyService.GetAllRulesAsync();
+        }
+        catch (Exception)
+        {
+            //
+        }
+        finally
+        {
+            Rules = new ObservableCollection<BlockyRule>(rules ?? []);
+            OnPropertyChanged(nameof(Rules));
+        }
     }
 
     [RelayCommand]

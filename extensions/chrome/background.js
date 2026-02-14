@@ -149,6 +149,7 @@ function connectWebSocket() {
             }
         } catch (e) {
             // Silently ignore unexpected payloads
+            console.error("[Blocky] Failed to parse WebSocket message:", e);
         }
     };
 

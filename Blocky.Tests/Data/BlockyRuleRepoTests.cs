@@ -1,9 +1,7 @@
 using Blocky.Data;
 using Blocky.Services.Contracts;
-using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using Moq;
-using NUnit.Framework;
+using ITimer = Blocky.Services.Contracts.ITimer;
 
 namespace Blocky.Tests.Data;
 

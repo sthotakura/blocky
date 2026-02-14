@@ -73,12 +73,10 @@ public sealed class BlockyService(
         logger.LogInformation("Retrieving all blocked domains");
 
         var rules = await _repo.GetActiveRulesAsync();
-
         var now = dateTimeService.Now.TimeOfDay;
+
         var blockedDomains = rules
-            .Where(rule => rule.IsEnabled && !string.IsNullOrWhiteSpace(rule.Domain) && ((!rule.HasTimeRestriction ||
-                (rule is { StartTime: not null, EndTime: not null } &&
-                 now >= rule.StartTime.Value && now < rule.EndTime.Value))))
+            .Where(rule => IsRuleActiveNow(rule, now))
             .Select(rule => rule.Domain)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -86,6 +84,29 @@ public sealed class BlockyService(
         logger.LogInformation("Found {count} blocked domains", blockedDomains.Length);
 
         return blockedDomains;
+    }
+
+    static bool IsRuleActiveNow(BlockyRule rule, TimeSpan currentTime)
+    {
+        // Rule must be enabled and have a valid domain
+        if (!rule.IsEnabled || string.IsNullOrWhiteSpace(rule.Domain))
+        {
+            return false;
+        }
+
+        // If no time restriction, rule is always active
+        if (!rule.HasTimeRestriction)
+        {
+            return true;
+        }
+
+        // With time restriction, check if we're within the time window
+        if (rule.StartTime is null || rule.EndTime is null)
+        {
+            return false; // Invalid time restriction
+        }
+
+        return currentTime >= rule.StartTime.Value && currentTime < rule.EndTime.Value;
     }
 
     static bool IsExactOrWwwOnly(string host, string ruleDomain)

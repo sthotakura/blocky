@@ -53,6 +53,7 @@ public sealed class CachedBlockyRuleRepo(ILogger<CachedBlockyRuleRepo> logger, I
         {
             await _cacheLock.WaitAsync();
             _cache.Set(ruleKey, rule);
+            _cache.Remove(AllRulesKey);
         }
         catch (Exception ex)
         {
@@ -76,6 +77,7 @@ public sealed class CachedBlockyRuleRepo(ILogger<CachedBlockyRuleRepo> logger, I
         {
             await _cacheLock.WaitAsync();
             _cache.Set(ruleKey, rule);
+            _cache.Remove(AllRulesKey);
         }
         catch (Exception ex)
         {
@@ -99,6 +101,7 @@ public sealed class CachedBlockyRuleRepo(ILogger<CachedBlockyRuleRepo> logger, I
         {
             await _cacheLock.WaitAsync();
             _cache.Remove(ruleKey);
+            _cache.Remove(AllRulesKey);
         }
         catch (Exception ex)
         {
