@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dotnet test:*)",
+      "Bash(dotnet build:*)",
+      "Bash(grep -v \"\\\\\\\\\\\\\\\\obj\\\\\\\\\\\\\\\\\")",
+      "Bash(grep -v \"\\\\\\\\\\\\\\\\bin\\\\\\\\\\\\\\\\\")",
+      "Bash(grep -v \"\\\\\\\\\\\\\\\\test\\\\\\\\\\\\\\\\\")"
+    ]
+  }
+}

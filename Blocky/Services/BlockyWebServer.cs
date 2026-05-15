@@ -34,6 +34,7 @@ public sealed class BlockyWebServer(
             return;
         }
 
+        blockyService.RulesChanged += OnRulesChanged;
         logger.LogInformation("Starting Blocky web server...");
 
         var settings = await settingsService.GetSettingsAsync();
@@ -71,6 +72,20 @@ public sealed class BlockyWebServer(
                             {
                                 if (context.WebSockets.IsWebSocketRequest)
                                 {
+                                    // Reject connections from web-page origins (http:// or https://).
+                                    // Chrome extensions send "chrome-extension://" as their Origin,
+                                    // and native/test clients typically send no Origin at all.
+                                    var origin = context.Request.Headers.Origin.ToString();
+                                    if (!string.IsNullOrEmpty(origin) &&
+                                        (origin.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
+                                         origin.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
+                                    {
+                                        logger.LogWarning("WebSocket connection rejected: disallowed Origin '{origin}'", origin);
+                                        context.Response.StatusCode = 403;
+                                        await context.Response.WriteAsync("Forbidden");
+                                        return;
+                                    }
+
                                     var webSocket = await context.WebSockets.AcceptWebSocketAsync();
 
                                     await _webSocketClientsLock.WaitAsync();
@@ -274,6 +289,22 @@ public sealed class BlockyWebServer(
         return changed;
     }
 
+    void OnRulesChanged() => _ = OnRulesChangedAsync();
+
+    async Task OnRulesChangedAsync()
+    {
+        try
+        {
+            logger.LogInformation("Rules changed — broadcasting immediately to WebSocket clients");
+            await UpdateLastSentAsync();
+            await BroadCastLastSentAsync();
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Error broadcasting immediate rule change");
+        }
+    }
+
     public async Task StopAsync()
     {
         if (_webHost is null)
@@ -282,6 +313,7 @@ public sealed class BlockyWebServer(
             return;
         }
 
+        blockyService.RulesChanged -= OnRulesChanged;
         logger.LogInformation("Stopping Blocky web server...");
 
         // Cancel and wait for timer task
@@ -305,6 +337,8 @@ public sealed class BlockyWebServer(
 
     public void Dispose()
     {
+        blockyService.RulesChanged -= OnRulesChanged;
+
         _webSocketClients.ForEach(client => client.Dispose());
         _webSocketClients.Clear();
 

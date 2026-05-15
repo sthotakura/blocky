@@ -30,4 +30,8 @@
     <ProjectReference Include="..\Blocky\Blocky.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="ViewModels\" />
+  </ItemGroup>
+
 </Project>

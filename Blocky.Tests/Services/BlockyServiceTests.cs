@@ -41,6 +41,21 @@ public class BlockyServiceTests
     }
 
     [Test]
+    public async Task AddRuleAsync_WithValidRule_RaisesRulesChangedEvent()
+    {
+        // Arrange
+        var rule = CreateTestRule("example.com");
+        var eventFired = false;
+        _sut.RulesChanged += () => eventFired = true;
+
+        // Act
+        await _sut.AddRuleAsync(rule);
+
+        // Assert
+        eventFired.Should().BeTrue();
+    }
+
+    [Test]
     public void AddRuleAsync_WithNullRule_ThrowsArgumentNullException()
     {
         // Act & Assert
@@ -66,6 +81,21 @@ public class BlockyServiceTests
     }
 
     [Test]
+    public async Task UpdateRuleAsync_WithValidRule_RaisesRulesChangedEvent()
+    {
+        // Arrange
+        var rule = CreateTestRule("example.com");
+        var eventFired = false;
+        _sut.RulesChanged += () => eventFired = true;
+
+        // Act
+        await _sut.UpdateRuleAsync(rule);
+
+        // Assert
+        eventFired.Should().BeTrue();
+    }
+
+    [Test]
     public void UpdateRuleAsync_WithNullRule_ThrowsArgumentNullException()
     {
         // Act & Assert
@@ -88,6 +118,21 @@ public class BlockyServiceTests
 
         // Assert
         _repoMock.Verify(r => r.DeleteAsync(ruleId), Times.Once);
+    }
+
+    [Test]
+    public async Task RemoveRuleAsync_WithValidId_RaisesRulesChangedEvent()
+    {
+        // Arrange
+        var ruleId = Guid.NewGuid();
+        var eventFired = false;
+        _sut.RulesChanged += () => eventFired = true;
+
+        // Act
+        await _sut.RemoveRuleAsync(ruleId);
+
+        // Assert
+        eventFired.Should().BeTrue();
     }
 
     [Test]
@@ -182,6 +227,51 @@ public class BlockyServiceTests
 
         // Assert
         result.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task IsDomainBlockedAsync_ArbitrarySubdomainMatch_ReturnsTrue()
+    {
+        // Arrange
+        var rule = CreateTestRule("example.com");
+        SetupActiveRules(rule);
+        SetupCurrentTime(TimeSpan.FromHours(10));
+
+        // Act
+        var result = await _sut.IsDomainBlockedAsync("images.example.com");
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task IsDomainBlockedAsync_MultiLevelSubdomainMatch_ReturnsTrue()
+    {
+        // Arrange
+        var rule = CreateTestRule("example.com");
+        SetupActiveRules(rule);
+        SetupCurrentTime(TimeSpan.FromHours(10));
+
+        // Act
+        var result = await _sut.IsDomainBlockedAsync("a.b.example.com");
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task IsDomainBlockedAsync_DomainThatEndsWithRuleDomainButIsNotSubdomain_ReturnsFalse()
+    {
+        // Arrange — "notexample.com" should NOT match rule "example.com"
+        var rule = CreateTestRule("example.com");
+        SetupActiveRules(rule);
+        SetupCurrentTime(TimeSpan.FromHours(10));
+
+        // Act
+        var result = await _sut.IsDomainBlockedAsync("notexample.com");
+
+        // Assert
+        result.Should().BeFalse();
     }
 
     [Test]

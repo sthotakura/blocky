@@ -8,7 +8,7 @@ public class BlockyRule
     public Guid Id { get; set; }
     
     [Required]
-    [MaxLength(50)]
+    [MaxLength(253)]
     public string Domain { get; set; } = string.Empty;
     
     public bool IsEnabled { get; set; } = true;

@@ -11,31 +11,36 @@ public sealed class BlockyService(
 {
     readonly IBlockyRuleRepo _repo = repo;
 
-    public Task AddRuleAsync(BlockyRule rule)
+    public event Action? RulesChanged;
+
+    public async Task AddRuleAsync(BlockyRule rule)
     {
         ArgumentNullException.ThrowIfNull(rule);
 
         logger.LogInformation("Adding rule {rule}", rule);
 
-        return _repo.AddAsync(rule);
+        await _repo.AddAsync(rule);
+        RulesChanged?.Invoke();
     }
 
-    public Task UpdateRuleAsync(BlockyRule updatedRule)
+    public async Task UpdateRuleAsync(BlockyRule updatedRule)
     {
         ArgumentNullException.ThrowIfNull(updatedRule);
 
         logger.LogInformation("Updating rule {rule}", updatedRule);
 
-        return _repo.UpdateAsync(updatedRule);
+        await _repo.UpdateAsync(updatedRule);
+        RulesChanged?.Invoke();
     }
 
-    public Task RemoveRuleAsync(Guid id)
+    public async Task RemoveRuleAsync(Guid id)
     {
         if (id.Equals(Guid.Empty)) throw new ArgumentException("Invalid rule id");
 
         logger.LogInformation("Removing rule with id {id}", id);
 
-        return _repo.DeleteAsync(id);
+        await _repo.DeleteAsync(id);
+        RulesChanged?.Invoke();
     }
 
     public ValueTask<BlockyRule?> GetRuleAsync(Guid id)
@@ -58,7 +63,7 @@ public sealed class BlockyService(
         var rules = await _repo.GetActiveRulesAsync();
 
         var shouldBlock = rules.Any(rule =>
-            IsExactOrWwwOnly(domain, rule.Domain) &&
+            IsSubdomainOrExact(domain, rule.Domain) &&
             (!rule.HasTimeRestriction ||
              (rule is { StartTime: not null, EndTime: not null } &&
               now >= rule.StartTime.Value && now < rule.EndTime.Value)));
@@ -109,9 +114,13 @@ public sealed class BlockyService(
         return currentTime >= rule.StartTime.Value && currentTime < rule.EndTime.Value;
     }
 
-    static bool IsExactOrWwwOnly(string host, string ruleDomain)
+    static bool IsSubdomainOrExact(string host, string ruleDomain)
     {
-        return string.Equals(host, ruleDomain, StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(host, $"www.{ruleDomain}", StringComparison.OrdinalIgnoreCase);
+        // Exact match (e.g. "example.com" matches rule "example.com")
+        if (string.Equals(host, ruleDomain, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        // Any subdomain (e.g. "www.example.com", "images.example.com", "a.b.example.com")
+        return host.EndsWith($".{ruleDomain}", StringComparison.OrdinalIgnoreCase);
     }
 }

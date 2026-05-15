@@ -5,6 +5,13 @@ VisualStudioVersion = 18.0.11205.157 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blocky", "Blocky\Blocky.csproj", "{3CEF3B06-9F31-4C2B-8BAC-EE9EA86CE61A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blocky.Tests", "Blocky.Tests\Blocky.Tests.csproj", "{FF2F3C6B-19B9-488B-8EA5-847C33F37390}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "claude", "claude", "{A82999B4-5AED-465E-BDCA-71C228E5F513}"
+	ProjectSection(SolutionItems) = preProject
+		CLAUDE.md = CLAUDE.md
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +22,10 @@ Global
 		{3CEF3B06-9F31-4C2B-8BAC-EE9EA86CE61A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3CEF3B06-9F31-4C2B-8BAC-EE9EA86CE61A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3CEF3B06-9F31-4C2B-8BAC-EE9EA86CE61A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FF2F3C6B-19B9-488B-8EA5-847C33F37390}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FF2F3C6B-19B9-488B-8EA5-847C33F37390}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FF2F3C6B-19B9-488B-8EA5-847C33F37390}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FF2F3C6B-19B9-488B-8EA5-847C33F37390}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
