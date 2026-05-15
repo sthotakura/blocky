@@ -1,11 +1,11 @@
-﻿using System.IO;
+using System.IO;
+using System.Net.Sockets;
 using System.Windows;
 using Blocky.Data;
 using Blocky.Services;
 using Blocky.Services.Contracts;
 using Blocky.ViewModels;
 using Blocky.Views;
-using CommunityToolkit.Mvvm.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -68,11 +68,8 @@ public partial class App
                     .AddSingleton<IBlockyWebServer, BlockyWebServer>()
                     .AddHostedService<BlockyWebServerHostedService>()
                     .AddSingleton<IBlockyService, BlockyService>()
-                    .AddSingleton<ISettingsService, SettingService>()
                     .AddSingleton<IApplication, DefaultApplication>()
                     .AddSingleton<ILogConfig, LogConfig>()
-                    .AddSingleton<IMessenger, WeakReferenceMessenger>()
-                    .AddSingleton<SettingsViewModel>()
                     .AddSingleton<MainWindowViewModel>()
                     .AddSingleton<MainWindow>();
             })
@@ -82,7 +79,21 @@ public partial class App
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        _host.Start();
+
+        try
+        {
+            _host.Start();
+        }
+        catch (Exception ex) when (IsPortInUse(ex))
+        {
+            MessageBox.Show(
+                $"Blocky could not start because port {BlockyWebServer.Port} is already in use by another application.\n\nPlease close the conflicting application and restart Blocky.",
+                "Port Conflict",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
+            Shutdown();
+            return;
+        }
 
         var serviceProvider = _host.Services;
         ConfigureDatabase(serviceProvider);
@@ -116,8 +127,20 @@ public partial class App
     {
         using var scope = serviceProvider.CreateScope();
         var contextFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
-        
+
         using var context = contextFactory.CreateDbContext();
         context.Database.EnsureCreated();
+    }
+
+    static bool IsPortInUse(Exception ex)
+    {
+        var e = ex;
+        while (e != null)
+        {
+            if (e is SocketException se && se.SocketErrorCode == SocketError.AddressAlreadyInUse)
+                return true;
+            e = e.InnerException;
+        }
+        return false;
     }
 }

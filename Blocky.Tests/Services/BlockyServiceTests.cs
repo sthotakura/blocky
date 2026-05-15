@@ -405,6 +405,91 @@ public class BlockyServiceTests
     }
 
     [Test]
+    public async Task IsDomainBlockedAsync_MidnightSpanning_DuringEveningPortion_ReturnsTrue()
+    {
+        // Arrange — 22:00–06:00 rule; 23:00 is within the window
+        var rule = CreateTestRuleWithTime("example.com",
+            startTime: TimeSpan.FromHours(22),
+            endTime: TimeSpan.FromHours(6));
+        SetupActiveRules(rule);
+        SetupCurrentTime(TimeSpan.FromHours(23));
+
+        // Act
+        var result = await _sut.IsDomainBlockedAsync("example.com");
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task IsDomainBlockedAsync_MidnightSpanning_DuringMorningPortion_ReturnsTrue()
+    {
+        // Arrange — 22:00–06:00 rule; 03:00 is within the window (after midnight)
+        var rule = CreateTestRuleWithTime("example.com",
+            startTime: TimeSpan.FromHours(22),
+            endTime: TimeSpan.FromHours(6));
+        SetupActiveRules(rule);
+        SetupCurrentTime(TimeSpan.FromHours(3));
+
+        // Act
+        var result = await _sut.IsDomainBlockedAsync("example.com");
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task IsDomainBlockedAsync_MidnightSpanning_OutsideWindow_ReturnsFalse()
+    {
+        // Arrange — 22:00–06:00 rule; 10:00 is outside the window
+        var rule = CreateTestRuleWithTime("example.com",
+            startTime: TimeSpan.FromHours(22),
+            endTime: TimeSpan.FromHours(6));
+        SetupActiveRules(rule);
+        SetupCurrentTime(TimeSpan.FromHours(10));
+
+        // Act
+        var result = await _sut.IsDomainBlockedAsync("example.com");
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task IsDomainBlockedAsync_MidnightSpanning_AtStartTime_ReturnsTrue()
+    {
+        // Arrange — 22:00–06:00 rule; exactly 22:00 is inclusive
+        var rule = CreateTestRuleWithTime("example.com",
+            startTime: TimeSpan.FromHours(22),
+            endTime: TimeSpan.FromHours(6));
+        SetupActiveRules(rule);
+        SetupCurrentTime(TimeSpan.FromHours(22));
+
+        // Act
+        var result = await _sut.IsDomainBlockedAsync("example.com");
+
+        // Assert
+        result.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task IsDomainBlockedAsync_MidnightSpanning_AtEndTime_ReturnsFalse()
+    {
+        // Arrange — 22:00–06:00 rule; exactly 06:00 is exclusive
+        var rule = CreateTestRuleWithTime("example.com",
+            startTime: TimeSpan.FromHours(22),
+            endTime: TimeSpan.FromHours(6));
+        SetupActiveRules(rule);
+        SetupCurrentTime(TimeSpan.FromHours(6));
+
+        // Act
+        var result = await _sut.IsDomainBlockedAsync("example.com");
+
+        // Assert
+        result.Should().BeFalse();
+    }
+
+    [Test]
     public void IsDomainBlockedAsync_WithNullDomain_ThrowsArgumentNullException()
     {
         // Act & Assert

@@ -2,88 +2,173 @@
 
 **Blocky** is a focused, no-nonsense website blocker for Windows.
 
-It lets you define time-based blocking rules for domains and enforces them through a local WebSocket server and a lightweight Chrome extension — no admin rights, no proxy hacks, no broken SSL.
+Define domain-based blocking rules with optional time windows. Enforcement happens entirely inside Chrome via the Declarative Net Request API — no admin rights, no system proxy, no broken SSL.
 
 ---
 
-## ✅ Features
+## Features
 
-- Block specific websites by domain
-- Set schedules (e.g., block 9am–5pm)
-- Chrome Extension for clean in-browser blocking
+- Block websites by domain (exact match + all subdomains)
+- Optional time-of-day windows, including overnight spans (e.g. 22:00–06:00)
+- Real-time rule push via WebSocket — changes apply immediately in Chrome
+- Runs silently in the system tray
 - No admin rights required
-- No system-wide proxy, no PAC file
+- No system-wide proxy
 
 ---
 
-## 🚀 How to Use
+## Requirements
 
-1. [Download the latest release](https://github.com/your-username/blocky/releases)
-2. Extract `blocky.zip`
-3. Run `Blocky.exe` (no installer needed)
-4. Open Chrome and load the extension:
+- Windows 10 or later
+- Google Chrome
+
+---
+
+## Installation
+
+### 1. Download and run the app
+
+1. Go to the [Releases page](https://github.com/sthotakura/blocky/releases)
+2. Download `blocky.zip` from the latest release
+3. Extract the zip to any folder
+4. Run `Blocky.exe`
+
+The app starts minimized to the system tray. Right-click the tray icon to open or quit.
+
+### 2. Install the Chrome extension
+
+> The extension is not yet on the Chrome Web Store — load it manually for now.
+
+1. Download `blocky-chrome-extension.zip` from the same release
+2. Extract the zip to a folder (e.g. `C:\blocky-extension\`)
+3. Open Chrome and go to `chrome://extensions`
+4. Enable **Developer Mode** (toggle, top-right)
+5. Click **Load unpacked**
+6. Select the folder you extracted the extension into
+7. Confirm the extension appears and is enabled
+
+### 3. Verify it's working
+
+1. Open Chrome DevTools on the extension's service worker:
    - Go to `chrome://extensions`
-   - Enable **Developer Mode**
-   - Click **Load Unpacked**
-   - Select the `extensions/chrome/` folder
-5. Add block rules in the app UI — you're done!
+   - Find **Blocky Extension** → click **Service Worker**
+2. You should see `[Blocky] WebSocket connected` in the console
+3. Add a rule in the Blocky app (e.g. `example.com`)
+4. Navigate to `https://example.com` — you should see the blocked page
 
 ---
 
-## ⚙️ How It Works
+## How It Works
 
-- `Blocky.exe` runs a local server on port `8080`
-- Chrome Extension connects via WebSocket to receive active blocklist
-- When a blocked domain is visited, the request is intercepted and the user sees `blocked.html`
-- Rules are updated in real-time without needing restarts
+```
+Blocky.exe  ──(WebSocket ws://localhost:45678/ws)──►  Chrome Extension
+    │                                                        │
+    │  SQLite (rules)                                Chrome DNR dynamic rules
+    │
+    └──(HTTP GET /blocked-domains)──►  available for manual queries
+```
 
----
-
-## 🆕 Recent Updates (2025-08-17)
-
-- Chrome Extension (MV3) service worker updated:
-  - Switched to Declarative Net Request `regexFilter` for domain matching; previous Adblock-style `urlFilter` patterns are not supported by Chrome DNR.
-  - Fully refreshes dynamic rules: removes all existing dynamic rules before adding the new set to prevent stale entries.
-  - Robust WebSocket handling with heartbeat (every ~25s) and exponential backoff reconnection; also connects on browser startup.
-- Server (BlockyWebServer.cs): WebSocket handler now keeps connections alive with a receive loop, sends initial data immediately, cleans up on close, and broadcasts changes every 30 seconds.
-
-### Validate the Setup
-
-1. Start Blocky (`Blocky.exe`). It hosts HTTP on `http://localhost:8080` by default and a WebSocket at `ws://localhost:8080/ws`.
-2. Load the Chrome extension from `extensions/chrome/`.
-3. Open chrome://extensions → Blocky → “Service Worker” (Inspect). You should see `[Blocky] WebSocket connected`.
-4. Add or edit rules in the app. Within ~30s or immediately on change broadcast, the service worker should log `Blocky: Rules updated` and visits to those domains should redirect to the extension’s `blocked.html`.
-
-Note: If a build fails with a file lock (apphost.exe → Blocky.exe), ensure the running Blocky process is closed and try building again.
-
-## 🧪 Known Limitations
-
-- Works only in Chrome (for now)
-- Other browsers won’t be blocked unless support is added
-- Extension must be installed and running
-- WebSocket connection must stay active
+1. `Blocky.exe` runs a local Kestrel server on port **45678**
+2. The Chrome extension connects via WebSocket and receives the active domain list
+3. Rules are translated into Chrome Declarative Net Request regex rules
+4. Blocked sites redirect to the extension's built-in `blocked.html` page
+5. When you add, edit, or remove a rule, the extension receives an immediate push — no 30-second wait
 
 ---
 
-## 📦 GitHub Releases
+## Using the App
 
-Releases include:
-- `blocky.zip` → self-contained app
-- `blocky-chrome-extension.zip` → Chrome extension
+### Adding a rule
 
-All built and packaged automatically via GitHub Actions.
+Click the **+** button in the top-right corner. Enter a domain (e.g. `reddit.com`) — all subdomains are blocked automatically (`www.reddit.com`, `old.reddit.com`, etc.).
+
+### Time-based blocking
+
+Toggle **Time Restriction** when adding or editing a rule. Set start and end times. Overnight windows work correctly (e.g. 22:00–06:00 blocks from 10pm until 6am).
+
+### Editing and removing rules
+
+Use the **Edit** (pencil) and **Delete** (bin) buttons on each row in the rule list.
+
+### System tray
+
+Blocky starts minimized. Double-click the tray icon to open the window. Right-click for **Quit**.
+
+### Logs
+
+Click the **book** icon in the toolbar to open the current log file.
 
 ---
 
-## 🔮 Roadmap
+## Troubleshooting
 
-- [ ] Auto-launch on system startup
+**Extension shows "WebSocket disconnected" or rules don't apply**
+
+- Make sure `Blocky.exe` is running (check system tray)
+- Confirm the extension is enabled in `chrome://extensions`
+- Check the service worker console (`chrome://extensions` → Blocky → Service Worker) for error messages
+
+**App fails to start with "Port Conflict" error**
+
+Port 45678 is already in use by another application. Find and close the conflicting process, then restart Blocky.
+
+```powershell
+# Find what's using port 45678
+netstat -ano | findstr :45678
+```
+
+**Extension installed but not blocking**
+
+Chrome may have suspended the service worker. Open the extension's service worker DevTools to wake it, or navigate to any page to trigger a reconnect.
+
+**Site is not blocked even though a rule exists**
+
+- Confirm the rule is **enabled** in the app (checkbox in the Enabled column)
+- If using a time restriction, confirm you are within the configured window
+- Check the service worker console for `Blocky: Rules updated` to confirm the rule was pushed
+
+---
+
+## Building from source
+
+```bash
+# Requirements: .NET 10 SDK
+
+# Build
+dotnet build Blocky.sln
+
+# Run tests
+dotnet test Blocky.sln
+
+# Run the app
+dotnet run --project Blocky/Blocky.csproj
+
+# Publish self-contained Windows executable
+dotnet publish Blocky/Blocky.csproj -c Release -r win-x64 --self-contained true
+```
+
+---
+
+## Releases
+
+GitHub Actions builds and packages automatically on version tags (`v*`):
+
+- `blocky.zip` — self-contained `Blocky.exe` (no .NET install needed)
+- `blocky-chrome-extension.zip` — Chrome extension folder, ready to load unpacked
+
+---
+
+## Roadmap
+
+- [ ] Chrome Web Store listing (removes the need for Developer Mode)
+- [ ] Windows installer with startup registration
+- [ ] Update notifications
 - [ ] Firefox extension
-- [ ] Pomodoro mode / temporary focus blocks
-- [ ] Stats and productivity tracking
+- [ ] Pomodoro / temporary focus blocks
+- [ ] Block statistics
 
 ---
 
-## ❗ Disclaimer
+## Disclaimer
 
-This is an experimental tool. Use responsibly. Feedback and PRs welcome!
+Experimental tool. Bypasses require Chrome; other browsers are unaffected. Feedback and PRs welcome.

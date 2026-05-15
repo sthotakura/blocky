@@ -5,7 +5,8 @@
       "Bash(dotnet build:*)",
       "Bash(grep -v \"\\\\\\\\\\\\\\\\obj\\\\\\\\\\\\\\\\\")",
       "Bash(grep -v \"\\\\\\\\\\\\\\\\bin\\\\\\\\\\\\\\\\\")",
-      "Bash(grep -v \"\\\\\\\\\\\\\\\\test\\\\\\\\\\\\\\\\\")"
+      "Bash(grep -v \"\\\\\\\\\\\\\\\\test\\\\\\\\\\\\\\\\\")",
+      "Bash(Remove-Item \"Blocky\\\\Data\\\\BlockySettings.cs\",\"Blocky\\\\Services\\\\SettingService.cs\",\"Blocky\\\\Services\\\\Contracts\\\\ISettingsService.cs\",\"Blocky\\\\ViewModels\\\\SettingsViewModel.cs\",\"Blocky\\\\Views\\\\SettingsView.xaml\",\"Blocky\\\\Views\\\\SettingsView.xaml.cs\",\"Blocky\\\\Messages\\\\CloseSettingsViewMessage.cs\")"
     ]
   }
 }

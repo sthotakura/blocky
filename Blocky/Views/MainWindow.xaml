@@ -1,11 +1,10 @@
-﻿<mah:MetroWindow x:Class="Blocky.Views.MainWindow"
+<mah:MetroWindow x:Class="Blocky.Views.MainWindow"
                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
                  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
                  xmlns:mah="http://metro.mahapps.com/winfx/xaml/controls"
                  xmlns:iconPacks="http://metro.mahapps.com/winfx/xaml/iconpacks"
-                 xmlns:views="clr-namespace:Blocky.Views"
                  xmlns:systemTray="clr-namespace:Chapter.Net.WPF.SystemTray;assembly=Chapter.Net.WPF.SystemTray"
                  WindowStartupLocation="CenterScreen"
                  Title="Blocky"
@@ -21,18 +20,8 @@
             <Button Command="{Binding OpenLogCommand}" ToolTip="Open Log">
                 <iconPacks:PackIconModern Kind="Book" />
             </Button>
-            <Button Command="{Binding ToggleSettingsCommand}" ToolTip="Open Settings">
-                <iconPacks:PackIconModern Kind="Settings" />
-            </Button>
         </mah:WindowCommands>
     </mah:MetroWindow.RightWindowCommands>
-    <mah:MetroWindow.Flyouts>
-        <mah:FlyoutsControl>
-            <mah:Flyout Header="Settings" Position="Right" Width="250" IsOpen="{Binding SettingsViewOpen}" Theme="Inverse">
-                <views:SettingsView DataContext="{Binding SettingsViewModel}"/>
-            </mah:Flyout>
-        </mah:FlyoutsControl>
-    </mah:MetroWindow.Flyouts>
     <systemTray:Tray.TrayIcon>
         <systemTray:TrayIcon Icon="Blocky.exe"
                              OpenWindowOnDoubleClick="True"
@@ -84,13 +73,13 @@
                     <DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <UniformGrid Rows="1" Columns="2">
-                                <Button Command="{Binding DataContext.EditRuleCommand, 
+                                <Button Command="{Binding DataContext.EditRuleCommand,
                                         RelativeSource={RelativeSource AncestorType=Window}}"
                                         CommandParameter="{Binding}" Margin="5 0" MinWidth="35"
                                         ToolTip="Edit Rule">
                                     <iconPacks:PackIconModern Kind="Edit" />
                                 </Button>
-                                <Button Command="{Binding DataContext.RemoveRuleCommand, 
+                                <Button Command="{Binding DataContext.RemoveRuleCommand,
                                         RelativeSource={RelativeSource AncestorType=Window}}"
                                         CommandParameter="{Binding}" Margin="5 0" MinWidth="35"
                                         ToolTip="Delete Rule">
@@ -104,9 +93,7 @@
         </DataGrid>
 
         <StatusBar Grid.Row="1">
-            <TextBlock
-                Text="{Binding IsRunning, 
-                       Converter={StaticResource BoolToStatusConverter}}" />
+            <TextBlock Text="Blocky is running on port 45678" />
         </StatusBar>
     </Grid>
 </mah:MetroWindow>

@@ -1,5 +1,3 @@
-// const BLOCKY_ENDPOINT = "http://localhost:8080/blocked-domains";
-
 // Helpers to work with DNR using Promises (MV3 service workers can use callbacks; we wrap them)
 function getExistingDynamicRuleIds() {
     return new Promise((resolve) => {
@@ -53,8 +51,6 @@ function buildRuleForDomain(domain, id) {
 
 async function updateRules(domains) {
     try {
-        // const res = await fetch(BLOCKY_ENDPOINT);
-        // const domains = await res.json(); // expecting array of domains
         const cleaned = Array.isArray(domains) ? domains.filter(Boolean) : [];
         const rules = cleaned
             .map((domain, index) => buildRuleForDomain(String(domain), 1000 + index))
@@ -73,7 +69,7 @@ async function updateRules(domains) {
     }
 }
 
-const WS_URL = "ws://localhost:8080/ws";
+const WS_URL = "ws://localhost:45678/ws";
 
 let socket;
 let isConnecting = false;
@@ -169,3 +165,10 @@ function connectWebSocket() {
 // Connect on install and on browser startup
 chrome.runtime.onInstalled.addListener(connectWebSocket);
 chrome.runtime.onStartup.addListener(connectWebSocket);
+
+// MV3 service workers are killed by Chrome after ~30s of inactivity.
+// Use chrome.alarms to wake the worker every 25s and reconnect if needed.
+chrome.alarms.create('keepAlive', { periodInMinutes: 0.4 });
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === 'keepAlive') connectWebSocket();
+});

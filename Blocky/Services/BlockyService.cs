@@ -66,7 +66,7 @@ public sealed class BlockyService(
             IsSubdomainOrExact(domain, rule.Domain) &&
             (!rule.HasTimeRestriction ||
              (rule is { StartTime: not null, EndTime: not null } &&
-              now >= rule.StartTime.Value && now < rule.EndTime.Value)));
+              IsWithinTimeWindow(now, rule.StartTime.Value, rule.EndTime.Value))));
 
         logger.LogInformation("Domain {domain} is {status}", domain, shouldBlock ? "blocked" : "not blocked");
 
@@ -111,8 +111,13 @@ public sealed class BlockyService(
             return false; // Invalid time restriction
         }
 
-        return currentTime >= rule.StartTime.Value && currentTime < rule.EndTime.Value;
+        return IsWithinTimeWindow(currentTime, rule.StartTime.Value, rule.EndTime.Value);
     }
+
+    static bool IsWithinTimeWindow(TimeSpan current, TimeSpan start, TimeSpan end) =>
+        start <= end
+            ? current >= start && current < end
+            : current >= start || current < end;
 
     static bool IsSubdomainOrExact(string host, string ruleDomain)
     {

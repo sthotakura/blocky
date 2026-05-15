@@ -11,10 +11,11 @@ namespace Blocky.Services;
 
 public sealed class BlockyWebServer(
     ILogger<BlockyWebServer> logger,
-    ISettingsService settingsService,
     IBlockyService blockyService)
     : IBlockyWebServer, IDisposable
 {
+    public const int Port = 45678;
+
     IHost? _webHost;
     readonly List<WebSocket> _webSocketClients = [];
     readonly SemaphoreSlim _webSocketClientsLock = new(1, 1);
@@ -35,14 +36,25 @@ public sealed class BlockyWebServer(
         }
 
         blockyService.RulesChanged += OnRulesChanged;
-        logger.LogInformation("Starting Blocky web server...");
+        logger.LogInformation("Starting Blocky web server on port {port}...", Port);
 
-        var settings = await settingsService.GetSettingsAsync();
+        _webHost = BuildWebHost();
 
-        _webHost = Host.CreateDefaultBuilder()
+        _timerCts = new CancellationTokenSource();
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+        _timerTask = RunBroadcastLoopAsync(_timerCts.Token);
+
+        await _webHost.StartAsync();
+
+        logger.LogInformation("Blocky web server started successfully on port {port}.", Port);
+    }
+
+    IHost BuildWebHost()
+    {
+        return Host.CreateDefaultBuilder()
             .ConfigureWebHostDefaults(webBuilder =>
             {
-                webBuilder.UseUrls($"http://localhost:{settings.ProxyPort}");
+                webBuilder.UseUrls($"http://localhost:{Port}");
                 webBuilder.Configure(app =>
                 {
                     app
@@ -127,9 +139,6 @@ public sealed class BlockyWebServer(
                                                 {
                                                     _ = System.Text.Encoding.UTF8.GetString(ms.ToArray());
                                                     ms.SetLength(0);
-                                                    // Optional: respond to simple heartbeat messages
-                                                    // If the client sends {"type":"ping"}, we can ignore or reply with pong
-                                                    // We choose to ignore to reduce chatter; broadcasts are timer-driven
                                                 }
                                             }
                                         }
@@ -178,14 +187,6 @@ public sealed class BlockyWebServer(
                 });
             })
             .Build();
-
-        _timerCts = new CancellationTokenSource();
-        _timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
-        _timerTask = RunBroadcastLoopAsync(_timerCts.Token);
-
-        await _webHost.StartAsync();
-
-        logger.LogInformation("Blocky web server started successfully.");
     }
 
     async Task RunBroadcastLoopAsync(CancellationToken ct)
@@ -231,12 +232,11 @@ public sealed class BlockyWebServer(
     {
         var buffer = GetLastSentBuffer();
 
-        logger.LogInformation("Broadcasting last sent data to {count} WebSocket clients", _webSocketClients.Count);
-
         await _webSocketClientsLock.WaitAsync();
         try
         {
             _webSocketClients.RemoveAll(client => client.State is WebSocketState.Closed or WebSocketState.Aborted);
+            logger.LogInformation("Broadcasting last sent data to {count} WebSocket clients", _webSocketClients.Count);
 
             foreach (var client in _webSocketClients.Where(client => client.State == WebSocketState.Open))
             {

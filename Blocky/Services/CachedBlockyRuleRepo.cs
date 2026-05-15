@@ -17,18 +17,16 @@ public sealed class CachedBlockyRuleRepo(ILogger<CachedBlockyRuleRepo> logger, I
         if (id == Guid.Empty) throw new ArgumentException("Invalid rule id", nameof(id));
         
         var ruleKey = $"{RuleKeyPrefix}{id}";
-        var rule = _cache.Get<BlockyRule>(ruleKey);
-        if (rule != null) return rule;
+        if (_cache.TryGetValue(ruleKey, out BlockyRule? rule)) return rule;
 
         try
         {
             await _cacheLock.WaitAsync();
-            rule = _cache.Get<BlockyRule>(ruleKey);
-            if (rule != null) return rule;
+            if (_cache.TryGetValue(ruleKey, out rule)) return rule;
 
             rule = await repo.GetByIdAsync(id);
             _cache.Set(ruleKey, rule);
-            
+
             return rule;
         }
         catch (Exception ex)

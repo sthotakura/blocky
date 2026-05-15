@@ -2,19 +2,17 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Windows;
 using Blocky.Data;
-using Blocky.Messages;
 using Blocky.Services;
 using Blocky.Services.Contracts;
 using Blocky.Views;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using CommunityToolkit.Mvvm.Messaging;
 using JetBrains.Annotations;
 
 namespace Blocky.ViewModels;
 
 [UsedImplicitly]
-public partial class MainWindowViewModel : ObservableObject, IRecipient<CloseSettingsViewMessage>
+public partial class MainWindowViewModel : ObservableObject
 {
     readonly IBlockyService _blockyService;
     readonly IApplication _app;
@@ -22,19 +20,12 @@ public partial class MainWindowViewModel : ObservableObject, IRecipient<CloseSet
 
     readonly Task _loadTask;
 
-    [ObservableProperty] bool _settingsViewOpen;
-
-    [ObservableProperty] SettingsViewModel _settingsViewModel;
-
-    public MainWindowViewModel(IBlockyService blockyService, IApplication app, SettingsViewModel settingsViewModel,
-        IMessenger messenger, ILogConfig logConfig)
+    public MainWindowViewModel(IBlockyService blockyService, IApplication app, ILogConfig logConfig)
     {
         _blockyService = blockyService;
         _app = app;
-        _settingsViewModel = settingsViewModel;
         _logConfig = logConfig;
 
-        messenger.Register(this);
         _loadTask = LoadAsync();
     }
 
@@ -58,9 +49,6 @@ public partial class MainWindowViewModel : ObservableObject, IRecipient<CloseSet
             OnPropertyChanged(nameof(Rules));
         }
     }
-
-    [RelayCommand]
-    void ToggleSettings() => SettingsViewOpen = !SettingsViewOpen;
 
     [RelayCommand]
     void Quit()
@@ -131,7 +119,7 @@ public partial class MainWindowViewModel : ObservableObject, IRecipient<CloseSet
         try
         {
             var logFilePath = _logConfig.GetCurrentLogFilePath();
-            
+
             Process.Start(new ProcessStartInfo
             {
                 FileName = logFilePath,
@@ -143,6 +131,4 @@ public partial class MainWindowViewModel : ObservableObject, IRecipient<CloseSet
             MessageBox.Show($"Failed to open log file: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
-
-    void IRecipient<CloseSettingsViewMessage>.Receive(CloseSettingsViewMessage message) => SettingsViewOpen = false;
 }

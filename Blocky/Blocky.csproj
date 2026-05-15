@@ -25,8 +25,7 @@
     <ItemGroup>
       <PackageReference Include="Chapter.Net.WPF.SystemTray" Version="2.1.0" />
       <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-      <PackageReference Include="Hardcodet.NotifyIcon.Wpf" Version="2.0.1" />
-      <PackageReference Include="JetBrains.Annotations" Version="2025.2.2" />
+<PackageReference Include="JetBrains.Annotations" Version="2025.2.2" />
       <PackageReference Include="MahApps.Metro" Version="2.4.11" />
       <PackageReference Include="MahApps.Metro.IconPacks" Version="6.2.1" />
       <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.0" />
@@ -77,6 +76,12 @@
     <ItemGroup>
       <None Remove="productivity-blocker-icon.ico" />
       <Resource Include="productivity-blocker-icon.ico" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Content Include="..\TASKS.md">
+        <Link>TASKS.md</Link>
+      </Content>
     </ItemGroup>
 
 </Project>

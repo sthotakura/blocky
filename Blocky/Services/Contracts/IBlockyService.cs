@@ -20,6 +20,10 @@ public interface IBlockyService
 
     Task<List<BlockyRule>> GetAllRulesAsync();
 
+    /// <summary>
+    /// Checks whether a specific domain is currently blocked (respects time windows).
+    /// Not used in the main Chrome blocking flow — useful for diagnostics and future UI queries.
+    /// </summary>
     ValueTask<bool> IsDomainBlockedAsync(string domain);
 
     ValueTask<string[]> GetBlockedDomainsAsync();
