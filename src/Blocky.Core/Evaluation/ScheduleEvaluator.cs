@@ -29,7 +29,7 @@ public static class ScheduleEvaluator
         return IsWithinWindow(timeOfDay, rule.StartTime.Value, rule.EndTime.Value);
     }
 
-    public static bool IsWithinWindow(TimeSpan current, TimeSpan start, TimeSpan end) =>
+    static bool IsWithinWindow(TimeSpan current, TimeSpan start, TimeSpan end) =>
         start <= end
             ? current >= start && current < end
             : current >= start || current < end;
