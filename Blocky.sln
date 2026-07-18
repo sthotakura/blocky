@@ -1,11 +1,19 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
 VisualStudioVersion = 18.0.11205.157 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blocky", "Blocky\Blocky.csproj", "{3CEF3B06-9F31-4C2B-8BAC-EE9EA86CE61A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blocky.App", "src\Blocky.App\Blocky.App.csproj", "{3CEF3B06-9F31-4C2B-8BAC-EE9EA86CE61A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blocky.Tests", "Blocky.Tests\Blocky.Tests.csproj", "{FF2F3C6B-19B9-488B-8EA5-847C33F37390}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blocky.Core", "src\Blocky.Core\Blocky.Core.csproj", "{5D8C1B7E-4A2F-4E7B-9C3D-0F6A1B2C3D4E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blocky.App.Tests", "tests\Blocky.App.Tests\Blocky.App.Tests.csproj", "{FF2F3C6B-19B9-488B-8EA5-847C33F37390}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blocky.Core.Tests", "tests\Blocky.Core.Tests\Blocky.Core.Tests.csproj", "{7E9F2A1B-3C4D-4E5F-8A9B-1C2D3E4F5A6B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blocky.Host", "src\Blocky.Host\Blocky.Host.csproj", "{9A8B7C6D-5E4F-4A3B-8C2D-1E0F9A8B7C6D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Blocky.Host.Tests", "tests\Blocky.Host.Tests\Blocky.Host.Tests.csproj", "{2B3C4D5E-6F7A-4B8C-9D0E-1F2A3B4C5D6E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "claude", "claude", "{A82999B4-5AED-465E-BDCA-71C228E5F513}"
 	ProjectSection(SolutionItems) = preProject
@@ -22,10 +30,26 @@ Global
 		{3CEF3B06-9F31-4C2B-8BAC-EE9EA86CE61A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3CEF3B06-9F31-4C2B-8BAC-EE9EA86CE61A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3CEF3B06-9F31-4C2B-8BAC-EE9EA86CE61A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5D8C1B7E-4A2F-4E7B-9C3D-0F6A1B2C3D4E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5D8C1B7E-4A2F-4E7B-9C3D-0F6A1B2C3D4E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5D8C1B7E-4A2F-4E7B-9C3D-0F6A1B2C3D4E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5D8C1B7E-4A2F-4E7B-9C3D-0F6A1B2C3D4E}.Release|Any CPU.Build.0 = Release|Any CPU
 		{FF2F3C6B-19B9-488B-8EA5-847C33F37390}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{FF2F3C6B-19B9-488B-8EA5-847C33F37390}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FF2F3C6B-19B9-488B-8EA5-847C33F37390}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FF2F3C6B-19B9-488B-8EA5-847C33F37390}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7E9F2A1B-3C4D-4E5F-8A9B-1C2D3E4F5A6B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E9F2A1B-3C4D-4E5F-8A9B-1C2D3E4F5A6B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E9F2A1B-3C4D-4E5F-8A9B-1C2D3E4F5A6B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E9F2A1B-3C4D-4E5F-8A9B-1C2D3E4F5A6B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9A8B7C6D-5E4F-4A3B-8C2D-1E0F9A8B7C6D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9A8B7C6D-5E4F-4A3B-8C2D-1E0F9A8B7C6D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9A8B7C6D-5E4F-4A3B-8C2D-1E0F9A8B7C6D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9A8B7C6D-5E4F-4A3B-8C2D-1E0F9A8B7C6D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2B3C4D5E-6F7A-4B8C-9D0E-1F2A3B4C5D6E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2B3C4D5E-6F7A-4B8C-9D0E-1F2A3B4C5D6E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2B3C4D5E-6F7A-4B8C-9D0E-1F2A3B4C5D6E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2B3C4D5E-6F7A-4B8C-9D0E-1F2A3B4C5D6E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

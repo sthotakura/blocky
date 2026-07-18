@@ -1,0 +1,83 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net10.0-windows7.0</TargetFramework>
+        <RootNamespace>Blocky</RootNamespace>
+        <AssemblyName>Blocky</AssemblyName>
+        <Nullable>enable</Nullable>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <UseWPF>true</UseWPF>
+        <LangVersion>default</LangVersion>
+        <ApplicationIcon>productivity-blocker-icon.ico</ApplicationIcon>
+        <AssemblyVersion>0.1.0.0</AssemblyVersion>
+        <FileVersion>0.1.0.0</FileVersion>
+        <!-- WPF is not supported/recommended with trimming. See NETSDK1168 and https://aka.ms/dotnet-illink/wpf -->
+        <PublishTrimmed>false</PublishTrimmed>
+        <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Blocky.Core\Blocky.Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Chapter.Net.WPF.SystemTray" Version="2.1.0" />
+      <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+      <PackageReference Include="JetBrains.Annotations" Version="2025.2.2" />
+      <PackageReference Include="MahApps.Metro" Version="2.4.11" />
+      <PackageReference Include="MahApps.Metro.IconPacks" Version="6.2.1" />
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
+      <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.10" />
+      <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
+      <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
+      <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
+      <PackageReference Include="Microsoft.Extensions.Logging.Configuration" Version="10.0.10" />
+      <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.10" />
+      <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.10" />
+      <PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="10.0.10" />
+      <PackageReference Include="Microsoft.Extensions.Logging.EventSource" Version="10.0.10" />
+      <PackageReference Include="Serilog" Version="4.3.0" />
+      <PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" />
+      <PackageReference Include="Serilog.Extensions.Hosting" Version="9.0.0" />
+      <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.2" />
+      <PackageReference Include="Serilog.Settings.Configuration" Version="9.0.0" />
+      <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+      <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Page Update="Views\MainWindow.xaml">
+        <Generator>MSBuild:Compile</Generator>
+        <XamlRuntime>Wpf</XamlRuntime>
+        <SubType>Designer</SubType>
+      </Page>
+      <Page Update="Views\RuleDialog.xaml">
+        <Generator>MSBuild:Compile</Generator>
+        <XamlRuntime>Wpf</XamlRuntime>
+        <SubType>Designer</SubType>
+      </Page>
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="Resources\blocky-page.html" />
+      <None Include="..\..\install\install.ps1">
+        <Link>install.ps1</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <None Include="..\..\install\uninstall.ps1">
+        <Link>uninstall.ps1</Link>
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+      <None Update="appSettings.json">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
+    <ItemGroup>
+      <None Remove="productivity-blocker-icon.ico" />
+      <Resource Include="productivity-blocker-icon.ico" />
+    </ItemGroup>
+
+</Project>

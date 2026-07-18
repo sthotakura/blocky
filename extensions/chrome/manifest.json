@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "Blocky Extension",
-  "version": "0.2",
+  "version": "0.3",
   "description": "Blocks distracting websites",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvDelOwqCMEFL9zqGv0sAIhYfJMwa08VkU8zz6QPb/XUyMLzNyiHndyCgh+/pG6Pr7vfAo5qR484PA2PBiNQJx5yRkrvU2Qlt3G998fRaEhzYLEDr5/wTVlHZJy+GWbwqn3buFnXOnAvW8VA+rnmQCV0GA57vg2y+MgJ0FuPcTpiC0Xq5x5/g9yRj790O6ia9XblF+GRqWO+O5xCFdKSoIQpYJS5GgtVkcvTgM130ieRDRkALbnqnN3rnS3fBFH5MNZHI4n7IRxoRkCHTLLQVmxzxyI4hPcZKLPHOV/mqhhvsNaRI9MzxhwKxGd/KNpO9SWBvL8Ef60t1U//7tzlKXwIDAQAB",
   "icons": {
     "16": "icons/icon_16x16.png",
     "48": "icons/icon_48x48.png",
@@ -11,13 +12,16 @@
   "permissions": [
     "declarativeNetRequest",
     "declarativeNetRequestWithHostAccess",
-    "alarms"
+    "alarms",
+    "storage",
+    "nativeMessaging"
   ],
   "host_permissions": [
     "<all_urls>"
   ],
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
   "declarative_net_request": {
     "rule_resources": []

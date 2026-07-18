@@ -1,0 +1,9 @@
+{
+  "name": "blocky-extension",
+  "private": true,
+  "type": "module",
+  "description": "Marks this folder as ESM so node --test can import the extension modules. Chrome ignores this file.",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\""
+  }
+}

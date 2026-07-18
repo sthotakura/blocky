@@ -1,0 +1,138 @@
+{
+  "description": "Shared time-window evaluation vectors. Loaded by Blocky.Core.Tests (C# ScheduleEvaluator) and extensions/chrome/tests (JS evaluator). Rules use the wire shape: schedule is null (always-on) or {startMinutes, endMinutes} with end-exclusive semantics; startMinutes > endMinutes spans midnight. nowMinutes is minutes since local midnight. nextBoundaryMinutes is the earliest start/end strictly after nowMinutes (wrapping), or null when no enabled scheduled rules exist.",
+  "cases": [
+    {
+      "name": "always-on rule is active any time",
+      "nowMinutes": 180,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "always.com", "enabled": true, "schedule": null }
+      ],
+      "expected": { "activeDomains": ["always.com"], "nextBoundaryMinutes": null }
+    },
+    {
+      "name": "disabled rule is never active",
+      "nowMinutes": 600,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "off.com", "enabled": false, "schedule": null }
+      ],
+      "expected": { "activeDomains": [], "nextBoundaryMinutes": null }
+    },
+    {
+      "name": "inside same-day window",
+      "nowMinutes": 600,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "work.com", "enabled": true, "schedule": { "startMinutes": 480, "endMinutes": 1020 } }
+      ],
+      "expected": { "activeDomains": ["work.com"], "nextBoundaryMinutes": 1020 }
+    },
+    {
+      "name": "before same-day window",
+      "nowMinutes": 420,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "work.com", "enabled": true, "schedule": { "startMinutes": 480, "endMinutes": 1020 } }
+      ],
+      "expected": { "activeDomains": [], "nextBoundaryMinutes": 480 }
+    },
+    {
+      "name": "after same-day window wraps boundary to next day's start",
+      "nowMinutes": 1200,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "work.com", "enabled": true, "schedule": { "startMinutes": 480, "endMinutes": 1020 } }
+      ],
+      "expected": { "activeDomains": [], "nextBoundaryMinutes": 480 }
+    },
+    {
+      "name": "start is inclusive",
+      "nowMinutes": 480,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "work.com", "enabled": true, "schedule": { "startMinutes": 480, "endMinutes": 1020 } }
+      ],
+      "expected": { "activeDomains": ["work.com"], "nextBoundaryMinutes": 1020 }
+    },
+    {
+      "name": "end is exclusive",
+      "nowMinutes": 1020,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "work.com", "enabled": true, "schedule": { "startMinutes": 480, "endMinutes": 1020 } }
+      ],
+      "expected": { "activeDomains": [], "nextBoundaryMinutes": 480 }
+    },
+    {
+      "name": "overnight window evening portion",
+      "nowMinutes": 1380,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "night.com", "enabled": true, "schedule": { "startMinutes": 1320, "endMinutes": 360 } }
+      ],
+      "expected": { "activeDomains": ["night.com"], "nextBoundaryMinutes": 360 }
+    },
+    {
+      "name": "overnight window morning portion",
+      "nowMinutes": 180,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "night.com", "enabled": true, "schedule": { "startMinutes": 1320, "endMinutes": 360 } }
+      ],
+      "expected": { "activeDomains": ["night.com"], "nextBoundaryMinutes": 360 }
+    },
+    {
+      "name": "overnight window outside",
+      "nowMinutes": 600,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "night.com", "enabled": true, "schedule": { "startMinutes": 1320, "endMinutes": 360 } }
+      ],
+      "expected": { "activeDomains": [], "nextBoundaryMinutes": 1320 }
+    },
+    {
+      "name": "overnight window start inclusive",
+      "nowMinutes": 1320,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "night.com", "enabled": true, "schedule": { "startMinutes": 1320, "endMinutes": 360 } }
+      ],
+      "expected": { "activeDomains": ["night.com"], "nextBoundaryMinutes": 360 }
+    },
+    {
+      "name": "overnight window end exclusive",
+      "nowMinutes": 360,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "night.com", "enabled": true, "schedule": { "startMinutes": 1320, "endMinutes": 360 } }
+      ],
+      "expected": { "activeDomains": [], "nextBoundaryMinutes": 1320 }
+    },
+    {
+      "name": "midnight-exact now with window starting at midnight",
+      "nowMinutes": 0,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "early.com", "enabled": true, "schedule": { "startMinutes": 0, "endMinutes": 60 } }
+      ],
+      "expected": { "activeDomains": ["early.com"], "nextBoundaryMinutes": 60 }
+    },
+    {
+      "name": "mixed rules only active ones returned, earliest boundary wins",
+      "nowMinutes": 780,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "always.com", "enabled": true, "schedule": null },
+        { "id": "00000000-0000-0000-0000-000000000002", "domain": "work.com", "enabled": true, "schedule": { "startMinutes": 480, "endMinutes": 1020 } },
+        { "id": "00000000-0000-0000-0000-000000000003", "domain": "lunch.com", "enabled": true, "schedule": { "startMinutes": 720, "endMinutes": 840 } },
+        { "id": "00000000-0000-0000-0000-000000000004", "domain": "disabled.com", "enabled": false, "schedule": { "startMinutes": 0, "endMinutes": 1439 } }
+      ],
+      "expected": { "activeDomains": ["always.com", "work.com", "lunch.com"], "nextBoundaryMinutes": 840 }
+    },
+    {
+      "name": "duplicate domains are de-duplicated case-insensitively",
+      "nowMinutes": 600,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "example.com", "enabled": true, "schedule": null },
+        { "id": "00000000-0000-0000-0000-000000000002", "domain": "EXAMPLE.COM", "enabled": true, "schedule": null }
+      ],
+      "expected": { "activeDomains": ["example.com"], "nextBoundaryMinutes": null }
+    },
+    {
+      "name": "disabled scheduled rule contributes no boundary",
+      "nowMinutes": 600,
+      "rules": [
+        { "id": "00000000-0000-0000-0000-000000000001", "domain": "always.com", "enabled": true, "schedule": null },
+        { "id": "00000000-0000-0000-0000-000000000002", "domain": "off.com", "enabled": false, "schedule": { "startMinutes": 660, "endMinutes": 720 } }
+      ],
+      "expected": { "activeDomains": ["always.com"], "nextBoundaryMinutes": null }
+    }
+  ]
+}

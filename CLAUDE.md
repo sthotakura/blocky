@@ -8,86 +8,94 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build
 dotnet build Blocky.sln
 
-# Run all tests
+# Run all .NET tests
 dotnet test Blocky.sln
 
-# Run tests with output
-dotnet test Blocky.sln --verbosity normal
-
 # Run a specific test class
-dotnet test --filter FullyQualifiedName~BlockyServiceTests
+dotnet test --filter FullyQualifiedName~ScheduleEvaluatorTests
 
-# Run with code coverage
-dotnet test --collect:"XPlat Code Coverage"
+# Run Chrome extension tests (pure-module tests via node --test)
+cd extensions/chrome && npm test
 
 # Run the app
-dotnet run --project Blocky/Blocky.csproj
+dotnet run --project src/Blocky.App/Blocky.App.csproj
 
-# Publish (self-contained Windows executable)
-dotnet publish Blocky/Blocky.csproj -c Release -r win-x64 --self-contained true
+# Publish (self-contained; both outputs go to one folder so install.ps1 works)
+dotnet publish src/Blocky.App/Blocky.App.csproj -c Release -r win-x64 --self-contained true -o ./publish
+dotnet publish src/Blocky.Host/Blocky.Host.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o ./publish
+
+# Add an EF Core migration (design-time factory lives in Blocky.Core)
+dotnet ef migrations add <Name> --project src/Blocky.Core
 ```
 
 ## Architecture
 
-Blocky is a WPF desktop app (.NET 10, Windows-only) that blocks websites by pushing domain rules to a Chrome extension over WebSocket. No admin rights or system proxy required — blocking is enforced entirely through Chrome's Declarative Net Request API.
+Blocky is a Windows-only website blocker with three cooperating pieces and **no network ports anywhere**:
+
+1. **Blocky.App** (WPF, .NET 10) — a pure rule *editor*. It writes rules to SQLite and has no runtime channel to Chrome; the database is the interface.
+2. **Blocky.Host** (console exe, published as `Blocky.Host.exe`) — a Chrome *native-messaging host*. Chrome spawns it and talks over stdio (4-byte LE length + UTF-8 JSON frames). It watches the database and pushes **full rule definitions** (never computed snapshots) to the extension.
+3. **Chrome extension** (MV3, `extensions/chrome/`) — the *enforcer*. It persists rules in `chrome.storage.local`, evaluates time windows against the local clock, and maintains Chrome DNR dynamic rules. Enforcement works with the app closed, the host dead, and across browser restarts.
 
 ### Data flow
 
 ```
-SQLite (EF Core) → CachedBlockyRuleRepo → BlockyService → BlockyWebServer (Kestrel :8080)
-                                                                    ↓
-                                               Chrome Extension (background.js)
-                                                                    ↓
-                                                    Chrome DNR dynamic rules
+Blocky.App ──writes──▶ %LocalAppData%\Blocky\blocky.db (SQLite, WAL)
+                              │  FileSystemWatcher on blocky.db* (WAL commits touch -wal)
+                              │  + 300 ms debounce + 30 s poll fallback
+                              ▼
+                        Blocky.Host ──stdio push (rev-hashed rules)──▶ extension
+                              ▲                                          │
+        Chrome spawns it via HKCU\...\NativeMessagingHosts\com.blocky.host
+                                                                         ▼
+                                        chrome.storage.local → evaluator → DNR rules
+                                        chrome.alarms fire at next window boundary
 ```
 
-### Key layers
+### Projects
 
-**Data** (`Blocky/Data/`)
-- `AppDbContext` — EF Core SQLite at `%LocalAppData%\Blocky\blocky.db`; schema created via `EnsureCreated()` on startup (not Migrate)
-- `BlockyRule` — entity with Domain, IsEnabled, HasTimeRestriction, StartTime, EndTime
-- `BlockySettings` — singleton settings entity (fixed Guid PK); stores `ProxyPort` (default 8080, range 1024–65535)
-- `BlockyRuleRepo` / `IBlockyRuleRepo` — repository CRUD; uses `IDbContextFactory<AppDbContext>` for thread-safe per-operation contexts
+**src/Blocky.Core** — shared by app and host
+- `Data/` — `BlockyRule` entity, `AppDbContext`, `BlockyRuleRepo`/`IBlockyRuleRepo` (uses `IDbContextFactory<AppDbContext>` for thread-safe per-operation contexts), `DbPaths` (well-known file locations), `DbInitializer` (runs `Migrate()`, baselines databases created by old `EnsureCreated` versions, enables WAL)
+- `Migrations/` — EF Core migrations; schema changes go through `dotnet ef migrations add`, never `EnsureCreated`
+- `Evaluation/ScheduleEvaluator` — pure static time-window logic (minutes since midnight, 0–1439; start > end = overnight span; **end-exclusive**). This is the C# reference implementation; `extensions/chrome/evaluator.js` must match it (enforced by shared contract vectors)
+- `Protocol/` — wire DTOs (`Messages.cs`, System.Text.Json source-generated, camelCase) and `RulesMessageFactory` (canonical serialization + SHA-256 `rev` content hash)
 
-**Services** (`Blocky/Services/`)
-- `CachedBlockyRuleRepo` — thread-safe MemoryCache wrapper over the repo; uses SemaphoreSlim with double-checked locking; invalidates on writes
-- `BlockyService` — core logic: domain matching (exact + `www.` subdomain, case-insensitive), time-window evaluation, rule CRUD
-- `BlockyWebServer` — Kestrel server on configurable port (from `BlockySettings.ProxyPort`) with two endpoints:
-  - `GET /blocked-domains` — JSON array of currently blocked domains
-  - `WS /ws` — broadcasts updated domain lists every 30 s; sends initial data immediately on connect; only broadcasts on change
-- `BlockyWebServerHostedService` — `IHostedService` wrapper for server lifecycle
-- `SettingService` — reads/writes `BlockySettings`; fires `SettingsUpdated` event when `ProxyPort` changes
-- `DefaultDateTimeService` — `DateTime.Now`/`UtcNow` abstraction (injected for testability)
-- Serilog writes daily log files to `%LocalAppData%\Blocky\logs\Blocky-{yyyyMMdd}.log`; configured via `appSettings.json`
+**src/Blocky.App** — WPF only (no server code)
+- ViewModels use CommunityToolkit.Mvvm source generators (`[ObservableProperty]`, `[RelayCommand]`)
+- VMs never touch Views/`MessageBox`/`Process.Start` — they depend on `IDialogService` (rule dialog, error, confirm) and `IShellService` (open file); DI in `App.xaml.cs` (all singletons)
+- `MainWindowViewModel` — awaited async load with a `LoadError` state (no fire-and-forget)
+- `BlockyService` — rule CRUD + `GetActiveDomains` delegating to `ScheduleEvaluator` (UI "active now" display only; enforcement lives in the extension)
+- Time is injected via .NET `TimeProvider` (mock with a fake in tests)
+- MahApps.Metro window chrome; system tray via Chapter.Net.WPF.SystemTray; starts minimized
+- `install.ps1`/`uninstall.ps1` (copied to output) — startup registration + native-messaging host manifest/registry (`HKCU\Software\Google\Chrome\NativeMessagingHosts\com.blocky.host`)
 
-**ViewModels / Views** (`Blocky/ViewModels/`, `Blocky/Views/`)
-- ViewModels use CommunityToolkit.Mvvm source generators: `[ObservableProperty]` generates properties, `[RelayCommand]` generates `ICommand` implementations
-- `IMessenger` (WeakReferenceMessenger) is used for cross-ViewModel messaging (e.g., `CloseSettingsViewMessage`)
-- `MainWindowViewModel` — loads rules on startup, exposes `ObservableCollection<BlockyRule>`, commands for Add/Edit/Remove/Settings/Quit
-- `RuleDialogViewModel` — validates domain (3–253 chars, no protocol/path/port), time-restriction toggle (defaults 08:00–19:00), start ≠ end validation
-- `SettingsViewModel` — loads and saves `ProxyPort`; uses `ObservableValidator` with `[NotifyDataErrorInfo]` for inline validation
-- MahApps.Metro provides the window chrome and DataGrid styling
-- System tray via Hardcodet.NotifyIcon.Wpf; app starts minimized to tray
+**src/Blocky.Host** — ~5 files, stateless except the last-pushed rev
+- `Program.cs` — stdout belongs exclusively to the protocol; Serilog logs to `%LocalAppData%\Blocky\logs\Blocky.Host-*.log`
+- `StdioFraming` — native-messaging frame read/write
+- `HostSession` — replies to `get-rules`, pushes on DB change, suppresses same-rev pushes; missing DB ⇒ `dbMissing: true` (authoritative empty — extension clears all rules)
+- `DbChangeMonitor` — FileSystemWatcher + debounce + poll backstop
+- Unknown message types / newer protocol versions are logged and ignored, never fatal
 
-**Chrome Extension** (`extensions/chrome/`)
-- MV3 service worker (`background.js`) connects to `ws://localhost:8080/ws`, applies exponential backoff reconnection, heartbeats every 25 s
-- Translates received domain arrays into Chrome DNR `regexFilter` dynamic rules
-
-### DI container
-
-`App.xaml.cs` bootstraps `Microsoft.Extensions.DependencyInjection`. All services, repos, and ViewModels are registered as singletons. `IDbContextFactory<AppDbContext>` is used everywhere (not direct `AppDbContext` injection) to safely share the SQLite connection across threads.
+**extensions/chrome** — ES modules, `"type": "module"`
+- `background.js` — thin; every wake path (install, startup, any alarm, host push) funnels through one idempotent `reconcile()`: apply rules → ensure port connected. No other state machine, no keepalive hacks
+- `evaluator.js` (pure: rules × now → active domains + next boundary), `dnr.js` (desired-rule computation + diff), `nativePort.js` (connect/handlers)
+- DNR: `requestDomains` conditions (domain + subdomains), redirect to `blocked.html`; stable per-domain integer IDs (`domainIdMap`, append-only); one atomic `updateDynamicRules({removeRuleIds, addRules})` call; >4,500 active domains ⇒ truncate + "!" badge
+- Alarms: one-shot `boundary` at next window edge; hourly `resync` (clock/timezone drift); `reconnect` every 1 min only while disconnected
+- Failure modes: host unreachable ⇒ keep enforcing stored rules (fail closed) + "!" badge; `dbMissing` ⇒ clear everything
+- `manifest.json` has a `key` field pinning the unpacked extension ID to `dnmkjkbjklkbjakdjhfjpcjknglifnmb`; that ID is hardcoded in `install.ps1` `allowed_origins`. Changing either breaks the native-messaging handshake (keygen documented in README)
 
 ### Build constraints
 
-`TreatWarningsAsErrors` is enabled in both Debug and Release configurations — all warnings must be resolved before committing.
+`TreatWarningsAsErrors` is enabled in all projects — all warnings must be resolved before committing.
 
-### Testing
+## Testing
 
-- **NUnit 4.x** + **Moq** + **FluentAssertions**
-- Tests in `Blocky.Tests/`: `BlockyServiceTests`, `CachedBlockyRuleRepoTests`, `BlockyRuleRepoTests`, `RuleDialogViewModelTests`
-- `BlockyRuleRepoTests` uses EF Core InMemory provider
-- `DefaultDateTimeService` is mocked to control time-based rule evaluation in tests
+- **NUnit 4.x** + **Moq** + **FluentAssertions** for .NET; `node --test` for extension modules
+- `tests/Blocky.Core.Tests` — `ScheduleEvaluatorTests`, `BlockyRuleRepoTests` (EF InMemory), `DbInitializerTests`, `RulesMessageFactoryTests`, `ContractVectorTests`
+- `tests/Blocky.App.Tests` — `BlockyServiceTests`, `MainWindowViewModelTests`, `RuleDialogViewModelTests` (VMs tested against fakes)
+- `tests/Blocky.Host.Tests` — `StdioFramingTests` (round-trips), `HostSessionTests` (over in-memory streams)
+- `tests/contract/time-window-vectors.json` — shared vectors loaded by **both** `ContractVectorTests` (NUnit) and `extensions/chrome/tests/evaluator.test.js`, so C#/JS evaluator drift breaks the build. Any time-window semantics change must update the vectors and both implementations
+- Async throw assertions must be awaited: `await act.Should().ThrowAsync<...>()`
 
-### CI/CD
+## CI/CD
 
-GitHub Actions (`.github/workflows/build.yml`) triggers on `v*` tags: runs `dotnet test`, publishes self-contained `Blocky.exe`, zips it with the Chrome extension, and uploads to GitHub Releases.
+GitHub Actions (`.github/workflows/build.yml`): tests (dotnet + node) run on every push/PR to `main`; on `v*` tags it additionally publishes `Blocky.exe` + single-file `Blocky.Host.exe` into one folder, zips it (`blocky.zip`) alongside the extension (`blocky-chrome-extension.zip`), and uploads both to the GitHub Release.
