@@ -144,6 +144,58 @@ public class MainWindowViewModelTests
     }
 
     [Test]
+    public async Task ToggleRuleEnabled_FlipsFlagViaServiceAndReplacesInCollection()
+    {
+        var existing = Rule("toggle.com");
+        existing.HasTimeRestriction = true;
+        existing.StartTime = new TimeSpan(9, 0, 0);
+        existing.EndTime = new TimeSpan(17, 0, 0);
+        _blockyServiceMock.Setup(s => s.GetAllRulesAsync()).ReturnsAsync([existing]);
+        var sut = CreateSut();
+        await sut.InitializationTask;
+
+        await sut.ToggleRuleEnabledCommand.ExecuteAsync(existing);
+
+        _blockyServiceMock.Verify(s => s.UpdateRuleAsync(It.Is<BlockyRule>(r => r.Id == existing.Id && !r.IsEnabled)), Times.Once);
+        sut.Rules.Should().ContainSingle().Which.Should().BeEquivalentTo(existing, o => o.Excluding(r => r.IsEnabled));
+        sut.Rules[0].IsEnabled.Should().BeFalse();
+
+        await sut.ToggleRuleEnabledCommand.ExecuteAsync(sut.Rules[0]);
+
+        sut.Rules.Should().ContainSingle().Which.IsEnabled.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task ToggleRuleEnabled_WhenServiceFails_ShowsErrorAndKeepsState()
+    {
+        var existing = Rule("keep.com");
+        _blockyServiceMock.Setup(s => s.GetAllRulesAsync()).ReturnsAsync([existing]);
+        _blockyServiceMock.Setup(s => s.UpdateRuleAsync(It.IsAny<BlockyRule>())).ThrowsAsync(new IOException("boom"));
+        var sut = CreateSut();
+        await sut.InitializationTask;
+
+        await sut.ToggleRuleEnabledCommand.ExecuteAsync(existing);
+
+        _dialogServiceMock.Verify(d => d.ShowError("Toggle Rule", It.Is<string>(m => m.Contains("boom"))), Times.Once);
+        sut.Rules.Should().ContainSingle().Which.IsEnabled.Should().BeTrue();
+    }
+
+    [Test]
+    public async Task EditRule_KeepsDisabledRuleDisabled()
+    {
+        var existing = Rule("off.com");
+        existing.IsEnabled = false;
+        _blockyServiceMock.Setup(s => s.GetAllRulesAsync()).ReturnsAsync([existing]);
+        SetupDialogResult(true, vm => vm.Domain = "still-off.com");
+        var sut = CreateSut();
+        await sut.InitializationTask;
+
+        await sut.EditRuleCommand.ExecuteAsync(existing);
+
+        sut.Rules.Should().ContainSingle().Which.IsEnabled.Should().BeFalse();
+    }
+
+    [Test]
     public async Task RemoveRule_RemovesViaServiceAndCollection()
     {
         var existing = Rule("gone.com");

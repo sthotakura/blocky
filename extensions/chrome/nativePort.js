@@ -4,6 +4,13 @@
 export const HOST_NAME = "com.blocky.host";
 export const PROTOCOL_VERSION = 1;
 
+// True when Chrome reports that no host is registered at all ("Specified native
+// messaging host not found.") — i.e. Blocky was uninstalled. A host that is registered
+// but crashes or fails to start produces a different error and is not matched.
+export function isHostUnregistered(reason) {
+    return /native messaging host not found/i.test(String(reason ?? ""));
+}
+
 // Returns the connected port, or null when connectNative itself throws
 // (e.g. nativeMessaging unavailable). Errors after connect surface via onDisconnect.
 export function connectNativeHost({ onRules, onDisconnect }) {

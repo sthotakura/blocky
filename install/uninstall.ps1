@@ -29,6 +29,11 @@ try {
         Remove-Item -Path $ManifestPath -Force
         Write-Host "Removed host manifest: $ManifestPath"
     }
+
+    Write-Host ""
+    Write-Host "Blocking lifts once Chrome is restarted: the extension clears its rules when it"
+    Write-Host "finds the host unregistered. Your rules remain in %LocalAppData%\Blocky - delete"
+    Write-Host "that folder to remove them, then remove the extension from chrome://extensions."
 } catch {
     Write-Error "Uninstall failed: $_"
     exit 1

@@ -123,6 +123,51 @@ public partial class MainWindowViewModel : ObservableObject
     }
 
     [RelayCommand]
+    async Task ToggleRuleEnabled(BlockyRule? rule)
+    {
+        if (rule is null)
+        {
+            return;
+        }
+
+        await InitializationTask;
+
+        var index = Rules.IndexOf(rule);
+        if (index < 0)
+        {
+            return;
+        }
+
+        var toggled = Copy(rule);
+        toggled.IsEnabled = !rule.IsEnabled;
+        try
+        {
+            await _blockyService.UpdateRuleAsync(toggled);
+            Rules[index] = toggled;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to toggle rule {domain}", rule.Domain);
+            _dialogService.ShowError("Toggle Rule", $"Failed to update rule: {ex.Message}");
+            // BlockyRule has no change notification; swapping in a fresh copy of the
+            // unchanged rule makes the row's checkbox snap back to the persisted state.
+            Rules[index] = Copy(rule);
+        }
+    }
+
+    static BlockyRule Copy(BlockyRule rule) => new()
+    {
+        Id = rule.Id,
+        Domain = rule.Domain,
+        IsEnabled = rule.IsEnabled,
+        HasTimeRestriction = rule.HasTimeRestriction,
+        StartTime = rule.StartTime,
+        EndTime = rule.EndTime,
+        CreatedAt = rule.CreatedAt,
+        LastUpdated = rule.LastUpdated
+    };
+
+    [RelayCommand]
     async Task RemoveRule(BlockyRule? rule)
     {
         if (rule is null)

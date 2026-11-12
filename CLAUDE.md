@@ -79,8 +79,9 @@ Blocky.App ──writes──▶ %LocalAppData%\Blocky\blocky.db (SQLite, WAL)
 - `background.js` — thin; every wake path (install, startup, any alarm, host push) funnels through one idempotent `reconcile()`: apply rules → ensure port connected. No other state machine, no keepalive hacks
 - `evaluator.js` (pure: rules × now → active domains + next boundary), `dnr.js` (desired-rule computation + diff), `nativePort.js` (connect/handlers)
 - DNR: `requestDomains` conditions (domain + subdomains), redirect to `blocked.html`; stable per-domain integer IDs (`domainIdMap`, append-only); one atomic `updateDynamicRules({removeRuleIds, addRules})` call; >4,500 active domains ⇒ truncate + "!" badge
-- Alarms: one-shot `boundary` at next window edge; hourly `resync` (clock/timezone drift); `reconnect` every 1 min only while disconnected
-- Failure modes: host unreachable ⇒ keep enforcing stored rules (fail closed) + "!" badge; `dbMissing` ⇒ clear everything
+- Open tabs: DNR only catches new navigations, so every `applyRules` also sweeps tabs already on an active domain (`findBlockedTabIds`) and redirects them
+- Alarms: one-shot `boundary` at next window edge (absolute `when`, computed to the second); hourly `resync` (clock/timezone drift); `reconnect` every 1 min only while disconnected
+- Failure modes: host unreachable ⇒ keep enforcing stored rules (fail closed) + "!" badge; `dbMissing` ⇒ clear everything; host *unregistered* (Chrome's "native messaging host not found", i.e. uninstalled) ⇒ clear everything too
 - `manifest.json` has a `key` field pinning the unpacked extension ID to `dnmkjkbjklkbjakdjhfjpcjknglifnmb`; that ID is hardcoded in `install.ps1` `allowed_origins`. Changing either breaks the native-messaging handshake (keygen documented in README)
 
 ### Build constraints

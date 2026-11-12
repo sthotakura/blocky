@@ -41,6 +41,30 @@ export function computeDesiredRules(activeDomains, domainIdMap = {}, nextDnrId =
     return { rules, domainIdMap: map, nextDnrId: nextId, truncated: domains.length > limited.length };
 }
 
+// Same matching semantics as DNR requestDomains: the domain itself or any subdomain.
+export function isHostBlocked(hostname, domains) {
+    const host = String(hostname ?? "").toLowerCase().replace(/\.$/, "");
+    if (!host) return false;
+    return (domains ?? []).some(domain => host === domain || host.endsWith(`.${domain}`));
+}
+
+// DNR only intercepts new navigations, so tabs already sitting on a domain when its
+// block engages must be redirected explicitly. Returns the ids of those tabs.
+export function findBlockedTabIds(tabs, domains) {
+    const ids = [];
+    for (const tab of tabs ?? []) {
+        let url;
+        try {
+            url = new URL(tab.url);
+        } catch {
+            continue; // no url (no host access) or unparsable
+        }
+        if (url.protocol !== "http:" && url.protocol !== "https:") continue;
+        if (isHostBlocked(url.hostname, domains)) ids.push(tab.id);
+    }
+    return ids;
+}
+
 function matchesDesired(existing, desired) {
     const existingDomains = existing.condition?.requestDomains;
     return existing.action?.type === "redirect"

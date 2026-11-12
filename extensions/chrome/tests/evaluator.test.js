@@ -8,7 +8,8 @@ import {
     getNextBoundaryMinutes,
     isRuleActive,
     isWithinWindow,
-    minutesSinceMidnight
+    minutesSinceMidnight,
+    msUntilBoundary
 } from "../evaluator.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -54,4 +55,18 @@ test("getActiveDomains: tolerates null/undefined rules array", () => {
 test("minutesSinceMidnight: converts a local Date", () => {
     const date = new Date(2026, 6, 17, 9, 30, 45);
     assert.equal(minutesSinceMidnight(date), 570);
+});
+
+test("msUntilBoundary: accounts for seconds within the current minute", () => {
+    // 16:59:50.000 -> 17:00 is 10 seconds away, not a full minute.
+    assert.equal(msUntilBoundary(new Date(2026, 6, 17, 16, 59, 50), 1020), 10_000);
+    assert.equal(msUntilBoundary(new Date(2026, 6, 17, 9, 0, 0, 250), 1020), 8 * 3_600_000 - 250);
+});
+
+test("msUntilBoundary: a boundary in the current minute means tomorrow", () => {
+    assert.equal(msUntilBoundary(new Date(2026, 6, 17, 17, 0, 1), 1020), 86_400_000 - 1000);
+});
+
+test("msUntilBoundary: wraps past midnight", () => {
+    assert.equal(msUntilBoundary(new Date(2026, 6, 17, 23, 30, 0), 360), 6.5 * 3_600_000);
 });

@@ -8,6 +8,15 @@ export function minutesSinceMidnight(date) {
     return date.getHours() * 60 + date.getMinutes();
 }
 
+// Milliseconds from `date` until boundaryMinutes next occurs on the local clock,
+// measured to the second so alarms land on the boundary rather than up to a minute late.
+// Always positive: a boundary in the current minute means tomorrow's occurrence.
+export function msUntilBoundary(date, boundaryMinutes) {
+    let deltaMinutes = boundaryMinutes - minutesSinceMidnight(date);
+    if (deltaMinutes <= 0) deltaMinutes += MINUTES_PER_DAY;
+    return deltaMinutes * 60_000 - (date.getSeconds() * 1000 + date.getMilliseconds());
+}
+
 export function isWithinWindow(nowMinutes, startMinutes, endMinutes) {
     return startMinutes <= endMinutes
         ? nowMinutes >= startMinutes && nowMinutes < endMinutes

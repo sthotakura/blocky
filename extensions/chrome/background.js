@@ -3,9 +3,9 @@
 // path (install, browser start, any alarm, host push) funnels through reconcile(),
 // which is idempotent from wall-clock time — there is no other state machine.
 
-import { getActiveDomains, getNextBoundaryMinutes, minutesSinceMidnight, MINUTES_PER_DAY } from "./evaluator.js";
-import { computeDesiredRules, diffRules } from "./dnr.js";
-import { connectNativeHost } from "./nativePort.js";
+import { getActiveDomains, getNextBoundaryMinutes, minutesSinceMidnight, msUntilBoundary } from "./evaluator.js";
+import { computeDesiredRules, diffRules, findBlockedTabIds } from "./dnr.js";
+import { connectNativeHost, isHostUnregistered } from "./nativePort.js";
 
 const BOUNDARY_ALARM = "boundary";
 const RESYNC_ALARM = "resync";
@@ -30,7 +30,8 @@ async function loadState() {
 
 async function applyRules() {
     const state = await loadState();
-    const now = minutesSinceMidnight(new Date());
+    const nowDate = new Date();
+    const now = minutesSinceMidnight(nowDate);
 
     const active = getActiveDomains(state.rules, now);
     const { rules: desired, domainIdMap, nextDnrId, truncated } =
@@ -45,18 +46,32 @@ async function applyRules() {
 
     await chrome.storage.local.set({ domainIdMap, nextDnrId });
     await updateBadge(state.hostState, truncated);
-    await scheduleBoundaryAlarm(state.rules, now);
+    await scheduleBoundaryAlarm(state.rules, nowDate);
+    await sweepOpenTabs(desired.map(rule => rule.condition.requestDomains[0]));
 }
 
-async function scheduleBoundaryAlarm(rules, nowMinutes) {
+async function scheduleBoundaryAlarm(rules, nowDate) {
     await chrome.alarms.clear(BOUNDARY_ALARM);
-    const boundary = getNextBoundaryMinutes(rules, nowMinutes);
+    const boundary = getNextBoundaryMinutes(rules, minutesSinceMidnight(nowDate));
     if (boundary === null) return;
 
-    let delayMinutes = boundary - nowMinutes;
-    if (delayMinutes <= 0) delayMinutes += MINUTES_PER_DAY;
-    // Fire just after the boundary minute starts so the new state is already in effect.
-    await chrome.alarms.create(BOUNDARY_ALARM, { delayInMinutes: delayMinutes + 0.05 });
+    // Fire one second into the boundary minute so the new state is already in effect.
+    const when = nowDate.getTime() + msUntilBoundary(nowDate, boundary) + 1000;
+    await chrome.alarms.create(BOUNDARY_ALARM, { when });
+}
+
+// DNR rules only catch new navigations; redirect tabs that are already on a blocked
+// domain. Best effort — a failure here must never break rule application.
+async function sweepOpenTabs(domains) {
+    if (domains.length === 0) return;
+    try {
+        const blockedUrl = chrome.runtime.getURL("blocked.html");
+        const tabIds = findBlockedTabIds(await chrome.tabs.query({}), domains);
+        await Promise.allSettled(tabIds.map(id => chrome.tabs.update(id, { url: blockedUrl })));
+        if (tabIds.length > 0) console.log(`[Blocky] Redirected ${tabIds.length} open tab(s)`);
+    } catch (e) {
+        console.warn("[Blocky] Tab sweep failed:", e);
+    }
 }
 
 async function updateBadge(hostState, truncated) {
@@ -99,7 +114,16 @@ async function handleDisconnect(reason) {
     console.warn("[Blocky] Host disconnected:", reason);
     // Keep enforcing the stored rules (fail closed); retry via alarm — in-memory
     // backoff would die with the worker anyway.
-    await chrome.storage.local.set({ hostState: "disconnected" });
+    const update = { hostState: "disconnected" };
+    if (isHostUnregistered(reason)) {
+        // No host is registered at all: Blocky was uninstalled, and with the host gone
+        // nothing could ever deliver dbMissing. Treat it as the same authoritative empty
+        // set. A reinstall resyncs on the next reconnect (rev is reset).
+        console.warn("[Blocky] Host is not registered; clearing rules");
+        update.rules = [];
+        update.rev = null;
+    }
+    await chrome.storage.local.set(update);
     await chrome.alarms.create(RECONNECT_ALARM, { periodInMinutes: 1 });
     await applyRules();
 }

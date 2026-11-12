@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildRule, computeDesiredRules, diffRules, FIRST_RULE_ID, MAX_ACTIVE_RULES } from "../dnr.js";
+import {
+    buildRule, computeDesiredRules, diffRules, findBlockedTabIds, isHostBlocked,
+    FIRST_RULE_ID, MAX_ACTIVE_RULES
+} from "../dnr.js";
 
 test("buildRule: redirect main_frame requests for the domain and subdomains", () => {
     const rule = buildRule("example.com", 1000);
@@ -88,4 +91,26 @@ test("diffRules: tolerates empty existing rules", () => {
 
     assert.deepEqual(removeRuleIds, []);
     assert.deepEqual(addRules, desired);
+});
+
+test("isHostBlocked: matches the domain and its subdomains only", () => {
+    const domains = ["reddit.com"];
+    assert.equal(isHostBlocked("reddit.com", domains), true);
+    assert.equal(isHostBlocked("OLD.Reddit.com.", domains), true);
+    assert.equal(isHostBlocked("notreddit.com", domains), false);
+    assert.equal(isHostBlocked("reddit.com.evil.org", domains), false);
+    assert.equal(isHostBlocked("", domains), false);
+});
+
+test("findBlockedTabIds: picks http(s) tabs on blocked domains", () => {
+    const tabs = [
+        { id: 1, url: "https://www.reddit.com/r/all" },
+        { id: 2, url: "https://example.org/?q=reddit.com" },
+        { id: 3, url: "chrome-extension://abc/blocked.html" },
+        { id: 4 },
+        { id: 5, url: "http://reddit.com/" }
+    ];
+    assert.deepEqual(findBlockedTabIds(tabs, ["reddit.com"]), [1, 5]);
+    assert.deepEqual(findBlockedTabIds(tabs, []), []);
+    assert.deepEqual(findBlockedTabIds(null, ["reddit.com"]), []);
 });

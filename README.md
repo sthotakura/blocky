@@ -83,7 +83,7 @@ Blocky.exe (WPF editor)                Chrome
 4. The extension stores the rules in `chrome.storage.local`, evaluates time windows against the local clock, and maintains Chrome DNR rules; alarms wake it exactly at window boundaries
 5. Because rules and schedules live inside Chrome, blocking keeps working when the app is closed, when the host isn't running, and across browser restarts. Blocked sites redirect to the extension's `blocked.html`
 
-Uninstalling Blocky (run `uninstall.ps1`, delete `%LocalAppData%\Blocky`) genuinely unblocks: when the database is gone the host reports it, and the extension clears all rules.
+Uninstalling Blocky genuinely unblocks. Run `uninstall.ps1` and restart Chrome: the extension clears all rules when it finds the host is no longer registered. Deleting `%LocalAppData%\Blocky` while the host is still installed has the same effect — the host reports the database is gone. (A host that is registered but crashes or can't start does *not* unblock.)
 
 ---
 
@@ -95,11 +95,11 @@ Click the **+** button in the top-right corner. Enter a domain (e.g. `reddit.com
 
 ### Time-based blocking
 
-Toggle **Time Restriction** when adding or editing a rule. Set start and end times. Overnight windows work correctly (e.g. 22:00–06:00 blocks from 10pm until 6am). The end time is exclusive: a 09:00–17:00 window unblocks at exactly 17:00.
+Toggle **Time Restriction** when adding or editing a rule. Set start and end times. Overnight windows work correctly (e.g. 22:00–06:00 blocks from 10pm until 6am). The end time is exclusive: a 09:00–17:00 window unblocks at exactly 17:00. When a block engages, tabs already open on that site are redirected to the blocked page too.
 
 ### Editing and removing rules
 
-Use the **Edit** (pencil) and **Delete** (bin) buttons on each row in the rule list.
+Use the **Edit** (pencil) and **Delete** (bin) buttons on each row in the rule list. Untick the **Enabled** checkbox on a row to switch a rule off without deleting it.
 
 ### System tray
 

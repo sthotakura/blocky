@@ -148,7 +148,7 @@ public partial class RuleDialogViewModel : ObservableValidator
         {
             Id = _rule.Id,
             Domain = Domain.Trim(), // Trim whitespace from domain
-            IsEnabled = true,
+            IsEnabled = _rule.IsEnabled, // new rules default to enabled; edits keep the toggle state
             HasTimeRestriction = HasTimeRestriction,
             StartTime = HasTimeRestriction ? StartTime : null,
             EndTime = HasTimeRestriction ? EndTime : null,

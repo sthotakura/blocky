@@ -75,9 +75,18 @@
                 <DataGridTextColumn Header="Domain"
                                     Binding="{Binding Domain}"
                                     Width="*" />
-                <DataGridCheckBoxColumn Header="Enabled"
-                                        Binding="{Binding IsEnabled}"
-                                        Width="Auto" />
+                <DataGridTemplateColumn Header="Enabled" Width="Auto">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding IsEnabled, Mode=OneWay}"
+                                      Command="{Binding DataContext.ToggleRuleEnabledCommand,
+                                        RelativeSource={RelativeSource AncestorType=Window}}"
+                                      CommandParameter="{Binding}"
+                                      HorizontalAlignment="Center"
+                                      ToolTip="Enable or disable this rule" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridCheckBoxColumn Header="Time Restricted"
                                         Binding="{Binding HasTimeRestriction}"
                                         Width="Auto" />
