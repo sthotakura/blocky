@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Blocky Extension",
-  "version": "0.3",
+  "version": "1.1.0",
   "description": "Blocks distracting websites",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvDelOwqCMEFL9zqGv0sAIhYfJMwa08VkU8zz6QPb/XUyMLzNyiHndyCgh+/pG6Pr7vfAo5qR484PA2PBiNQJx5yRkrvU2Qlt3G998fRaEhzYLEDr5/wTVlHZJy+GWbwqn3buFnXOnAvW8VA+rnmQCV0GA57vg2y+MgJ0FuPcTpiC0Xq5x5/g9yRj790O6ia9XblF+GRqWO+O5xCFdKSoIQpYJS5GgtVkcvTgM130ieRDRkALbnqnN3rnS3fBFH5MNZHI4n7IRxoRkCHTLLQVmxzxyI4hPcZKLPHOV/mqhhvsNaRI9MzxhwKxGd/KNpO9SWBvL8Ef60t1U//7tzlKXwIDAQAB",
   "icons": {
